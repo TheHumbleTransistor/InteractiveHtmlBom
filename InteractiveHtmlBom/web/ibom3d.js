@@ -35,6 +35,12 @@ const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not
 const MASK_COLOR = 0x1d7a44;
 const MASK_OPACITY = 0.8;    // translucent, so the copper underneath reads through
 const COPPER_COLOR = 0xe8c98a;
+// KiCad exports copper as metalness 1 / roughness 0.4. A fully metallic surface has NO diffuse
+// term, so with no environment map to reflect it is black except where a light happens to catch
+// it -- gold from straight above, near-black from an angle. Drop it to a matte dielectric so the
+// colour is the colour, whatever the view.
+const COPPER_METALNESS = 0.0;
+const COPPER_ROUGHNESS = 0.7;
 
 var scene, camera, renderer, controls, root;
 var nodesByRef = {};         // refdes -> [Object3D]; a refdes can own more than one node
@@ -207,6 +213,10 @@ function tintBoardLayers(root) {
     if (!mat) {
       mat = f.mesh.material.clone();
       if (col !== null) mat.color = new THREE.Color(col);
+      if (f.k === copper && mat.metalness !== undefined) {
+        mat.metalness = COPPER_METALNESS;
+        mat.roughness = COPPER_ROUGHNESS;
+      }
       if (f.k === mask) {
         // depthWrite stays ON: the mask must still occlude anything genuinely behind it, and
         // three.js draws transparent materials after the opaque pass, so copper and substrate

@@ -118,7 +118,22 @@ carries `#f5f5f5` -- but gives copper a flat `#808080`, which is nobody's idea o
 soldermask and copper are therefore tinted, and the mask is made slightly translucent so the
 copper beneath reads through. A green board is what reads as "a PCB" on screen whatever the real
 stackup says; set `MASK_COLOR = null` to keep the exported colour instead. `MASK_COLOR`,
-`MASK_OPACITY` and `COPPER_COLOR` are at the top of `ibom3d.js`.
+`MASK_OPACITY`, `COPPER_COLOR`, `COPPER_METALNESS` and `COPPER_ROUGHNESS` are at the top of
+`ibom3d.js`.
+
+Copper also needs its **PBR properties** overridden, not just its colour. KiCad exports it as
+`metalness 1 / roughness 0.4`, and a fully metallic surface has no diffuse term -- with no
+environment map to reflect, it is black except where a light happens to catch it. Measured over
+the copper-toned pixels of an isolated render:
+
+| | copper pixels | mean RGB |
+|---|---|---|
+| metalness 1, top-down | 5367 | (140, 121, 82) |
+| metalness 1, shallow | **0 -- none** | copper vanishes |
+| metalness 0, top-down | 5730 | (225, 197, 138) |
+| metalness 0, shallow | 4050 | (221, 192, 134) |
+
+At `metalness 0 / roughness 0.7` the colour is within ~2 % across viewing angles.
 
 Identify the layers by **area**, not mesh count or height rank: the front full-board planes are
 the substrate and the mask -- lowest and highest of them -- and copper is the busiest plane
