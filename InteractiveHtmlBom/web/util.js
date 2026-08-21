@@ -498,6 +498,7 @@ var settings = {
   checkboxStoredRefs: {},
   darkMode: false,
   highlightpin1: "none",
+  placed3donly: false,
   redrawOnDrag: true,
   boardRotation: 0,
   offsetBackRotation: false,
@@ -582,6 +583,7 @@ function initDefaults() {
   initBooleanSetting("dnpOutline", false, "dnpOutlineCheckbox", dnpOutline);
   initBooleanSetting("redrawOnDrag", config.redraw_on_drag, "dragCheckbox", setRedrawOnDrag);
   initBooleanSetting("highlightRowOnClick", false, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
+  initBooleanSetting("placed3donly", false, "placed3dOnlyCheckbox", setPlaced3dOnly);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
   var fields = ["checkboxes", "References"].concat(config.fields).concat(["Quantity"]);

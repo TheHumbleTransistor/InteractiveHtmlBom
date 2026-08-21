@@ -130,7 +130,14 @@ function silkscreenVisible(value) {
 function setHighlightPin1(value) {
   writeStorage("highlightpin1", value);
   settings.highlightpin1 = value;
+  if (window.updatePin1) window.updatePin1();
   redrawIfInitDone();
+}
+
+function setPlaced3dOnly(value) {
+  writeStorage("placed3donly", value);
+  settings.placed3donly = value;
+  if (window.setPlacedOnly) window.setPlacedOnly(value);
 }
 
 function setHighlightRowOnClick(value) {
@@ -1337,6 +1344,7 @@ window.onload = function (e) {
   initDone = true;
   if (!window.has3D) {
     document.getElementById("view3d-btn").style.display = "none";
+    document.getElementById("placed3dOnlyContainer").style.display = "none";
     document.getElementById("bl-btn").classList.add("right-most-button");
     document.getElementById("bl-btn").classList.remove("middle-button");
     if (settings.canvaslayout == '3D') settings.canvaslayout = 'FB';

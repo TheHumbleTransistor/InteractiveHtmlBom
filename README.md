@@ -31,13 +31,45 @@ Adds a **3D** button beside F / FB / B. Selecting a BOM row highlights those par
 scene and frames the camera on them.
 
 ```sh
-kicad-cli pcb export glb -o board.glb board.kicad_pcb
+kicad-cli pcb export glb --include-silkscreen --include-soldermask -o board.glb board.kicad_pcb
 generate_interactive_bom --glb board.glb board.kicad_pcb
 ```
 
 Without `--glb` nothing changes: the button is hidden and the output is byte-comparable to
-upstream. The `.glb` is embedded, so the result is still one self-contained HTML file
-(+4.3 MB for a 170 x 70 mm board, +2 MB for three.js).
+upstream. The `.glb` is embedded, so the result is still one self-contained HTML file.
+
+`--include-silkscreen` is worth the bytes -- reference designators and legends make the 3D view
+navigable rather than a field of anonymous grey blocks. Measured on a 170 x 70 mm board:
+
+| glb flags | glb | added to the html |
+|---|---|---|
+| none | 3.2 MB | 4.3 MB |
+| `--include-silkscreen --include-soldermask` | 5.4 MB | 7.2 MB |
+| `--include-tracks --include-pads` as well | 16.4 MB | 21.9 MB (don't) |
+
+three.js adds a further ~2 MB.
+
+### Pin 1
+
+Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`) -- no new
+control. Pin-1 pads get a small blue dot on the board face the part is on.
+
+This needs a board-millimetres to model-units mapping, which is the one place the refdes trick
+does not reach. It is **solved at load time from every footprint present on both sides**, not
+assumed: measured on KiCad 10 the mapping is the identity (board x,y in mm to model x,z in
+metres, no offset, no sign flip), and the fit confirms it at a 0.000 mm median residual over 142
+footprints. Judge such a fit on the MEDIAN residual, never the worst -- a footprint whose 3D
+model carries its own `(offset ...)` is a legitimate outlier, and there were 8 of them. If the
+fit fails the dots are disabled with a console warning rather than drawn in the wrong place.
+
+### Only show placed parts
+
+A **3D: only show placed parts** checkbox in the settings menu. With it on, the 3D view shows
+only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
+and at a glance you see what the half-built board in front of you should look like.
+
+It rides iBOM's own `CHECKBOX_CHANGE_EVENT`, so no checkbox bookkeeping is patched. It follows
+whichever column `--mark-when-checked` names, defaulting to `Placed`.
 
 **How the mapping works.** KiCad's GLB export names every scene node for its reference
 designator, so a BOM row finds its geometry by name -- no coordinate transform, no lookup table
