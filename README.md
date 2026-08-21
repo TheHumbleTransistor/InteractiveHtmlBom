@@ -25,6 +25,42 @@ and can be packaged with documentation of your project or hosted anywhere on the
 
 [A demo is worth a thousand words.](https://openscopeproject.org/InteractiveHtmlBomDemo/)
 
+## 3D board view (this fork)
+
+Adds a **3D** button beside F / FB / B. Selecting a BOM row highlights those parts in the 3D
+scene and frames the camera on them.
+
+```sh
+kicad-cli pcb export glb -o board.glb board.kicad_pcb
+generate_interactive_bom --glb board.glb board.kicad_pcb
+```
+
+Without `--glb` nothing changes: the button is hidden and the output is byte-comparable to
+upstream. The `.glb` is embedded, so the result is still one self-contained HTML file
+(+4.3 MB for a 170 x 70 mm board, +2 MB for three.js).
+
+**How the mapping works.** KiCad's GLB export names every scene node for its reference
+designator, so a BOM row finds its geometry by name -- no coordinate transform, no lookup table
+to keep in sync, and it survives the board moving underneath it. Parts with no 3D model are
+skipped and counted in a corner note. On this project's board 142 of 178 footprints have named
+nodes, and the 36 that do not are exactly the `TP*`/`MH*`/`FID*`/logo set that iBOM already
+excludes from the BOM -- so no BOM row is ever unmatched.
+
+**Design notes**, mostly so they are not re-litigated:
+
+- three.js r169 is vendored **unmodified** under `web/three/` (MIT, `LICENSE` included) and
+  inlined as `data:` URIs in an import map. ES modules cannot be concatenated and three.js has
+  shipped no UMD build since r160, so something must resolve the bare `three` specifier inside
+  an inlined `<script type=module>`. A `data:` import map does it **with no bundler**, which
+  keeps the single-file property and adds no Node toolchain.
+- The one build-time edit: `GLTFLoader` imports `BufferGeometryUtils` by *relative* path, and a
+  relative specifier cannot resolve when the importing module is itself a `data:` URI. That
+  single import is rewritten to a bare specifier in `core/ibom.py`; the vendored file on disk
+  stays pristine.
+- KiCad exports GLB in **metres**, not millimetres.
+- `tests/check_3d.py` screenshots a generated file in headless Chromium (software WebGL, no GPU
+  needed). It is the only thing that can catch a blank 3D pane, which is otherwise silent.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.

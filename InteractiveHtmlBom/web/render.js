@@ -553,6 +553,9 @@ function drawHighlightsOnLayer(canvasdict, clear = true) {
 function drawHighlights() {
   drawHighlightsOnLayer(allcanvas.front);
   drawHighlightsOnLayer(allcanvas.back);
+  if (window.highlight3D) {
+    window.highlight3D(highlightedFootprints.map(i => pcbdata.footprints[i].ref));
+  }
 }
 
 function drawBackground(canvasdict, clear = true) {
@@ -679,6 +682,7 @@ function resizeCanvas(layerdict) {
 function resizeAll() {
   resizeCanvas(allcanvas.front);
   resizeCanvas(allcanvas.back);
+  if (window.resize3D) window.resize3D();
 }
 
 function pointWithinDistanceToSegment(x, y, x1, y1, x2, y2, d) {

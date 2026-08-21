@@ -74,6 +74,7 @@ class Config:
 
     # Extra fields section
     extra_data_file = None
+    glb_file = None
     netlist_initial_directory = ''  # This is relative to pcb file directory
     show_fields = default_show_group_fields
     group_fields = default_show_group_fields
@@ -343,6 +344,12 @@ class Config:
         parser.add_argument('--kicad-variant', default='',
                             help='KiCad board variant, empty is default '
                                  'variant. (Only for KiCad v10+)')
+        parser.add_argument('--glb', default=None, metavar='PATH',
+                            help='Embed this binary glTF (.glb) file and enable the 3D '
+                                 'board view. Produce one with '
+                                 '`kicad-cli pcb export glb -o board.glb board.kicad_pcb`. '
+                                 'Its scene nodes must be named for reference designators, '
+                                 'which is what KiCad emits.')
         parser.add_argument('--version', action='version', version=version)
         # Html
         parser.add_argument('--dark-mode', help='Default to dark mode.',
@@ -629,6 +636,8 @@ class Config:
         self.blacklist_empty_val = args.blacklist_empty_val
         self.include_tracks = args.include_tracks
         self.include_nets = args.include_nets
+
+        self.glb_file = args.glb
 
         # Fields
         self.extra_data_file = args.extra_data_file or args.netlist_file

@@ -267,6 +267,56 @@ def get_pcbdata_javascript(pcbdata, compression):
     return js.format(pcbdata_str)
 
 
+def get_three_js_importmap(get_file_content):
+    """three.js as `data:` URIs in an import map -- no bundler, one self-contained file.
+
+    ES modules cannot be concatenated and three.js has shipped no UMD build since r160, so
+    something has to resolve the bare `three` specifier inside an inlined <script type=module>.
+    A `data:` import map does it with no build step, which is the whole reason for this shape.
+
+    The one wrinkle: GLTFLoader imports BufferGeometryUtils by RELATIVE path, and a relative
+    specifier has no base to resolve against when the importing module is itself a data: URI.
+    So that single import is rewritten to a bare specifier here, at build time, leaving the
+    vendored file on disk pristine.
+    """
+    import base64
+
+    def data_uri(text):
+        b64 = base64.b64encode(text.encode('utf-8')).decode('ascii')
+        return 'data:text/javascript;base64,' + b64
+
+    three = get_file_content('three/three.module.js')
+    if not three:
+        return ''
+    gltf = get_file_content('three/GLTFLoader.js').replace(
+        "from '../utils/BufferGeometryUtils.js'", "from 'three-bgu'")
+
+    imports = {
+        'three': data_uri(three),
+        'three-gltfloader': data_uri(gltf),
+        'three-orbitcontrols': data_uri(get_file_content('three/OrbitControls.js')),
+        'three-bgu': data_uri(get_file_content('three/BufferGeometryUtils.js')),
+    }
+    return '<script type="importmap">%s</script>' % json.dumps({'imports': imports})
+
+
+def get_3d_javascript(get_file_content, glb_file):
+    """The module <script> that boots the 3D view, with the GLB inlined as a data: URI."""
+    import base64
+
+    if not glb_file:
+        return ''
+    if not os.path.isfile(glb_file):
+        log.warn('3D model %s not found, skipping 3D view', glb_file)
+        return ''
+    with open(glb_file, 'rb') as f:
+        glb = base64.b64encode(f.read()).decode('ascii')
+    log.info('Embedding 3D model %s (%.1f MB encoded)', glb_file, len(glb) / 1048576.0)
+    return ('<script type="module">\n%s\n'
+            'init3D("data:model/gltf-binary;base64,%s");\n</script>'
+            % (get_file_content('ibom3d.js'), glb))
+
+
 def generate_file(pcb_file_dir, pcb_file_name, pcbdata, config):
     def get_file_content(file_name):
         path = os.path.join(os.path.dirname(__file__), "..", "web", file_name)
@@ -303,6 +353,11 @@ def generate_file(pcb_file_dir, pcb_file_name, pcbdata, config):
     html = html.replace('///TABLEUTILJS///', get_file_content('table-util.js'))
     html = html.replace('///IBOMJS///', get_file_content('ibom.js'))
     html = html.replace('///USERJS///', get_file_content('user.js'))
+    glb_file = getattr(config, 'glb_file', None)
+    html = html.replace('///THREE_IMPORTMAP///',
+                        get_three_js_importmap(get_file_content) if glb_file else '')
+    html = html.replace('///IBOM3DJS///',
+                        get_3d_javascript(get_file_content, glb_file))
     html = html.replace('///USERHEADER///',
                         get_file_content('userheader.html'))
     html = html.replace('///USERFOOTER///',

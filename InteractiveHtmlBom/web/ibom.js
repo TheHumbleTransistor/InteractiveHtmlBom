@@ -367,6 +367,9 @@ function getBomListByLayer(layer) {
     case 'F': return pcbdata.bom.F.slice();
     case 'B': return pcbdata.bom.B.slice();
     case 'FB': return pcbdata.bom.both.slice();
+    // The 3D view shows the whole board, so it lists both sides. Without this the switch
+    // falls through to [] and the BOM table silently empties the moment you press 3D.
+    case '3D': return pcbdata.bom.both.slice();
   }
   return [];
 }
@@ -866,6 +869,22 @@ function changeCanvasLayout(layout) {
   document.getElementById("fl-btn").classList.remove("depressed");
   document.getElementById("fb-btn").classList.remove("depressed");
   document.getElementById("bl-btn").classList.remove("depressed");
+  document.getElementById("view3d-btn").classList.remove("depressed");
+  // The 3D pane is a third child of #canvasdiv that Split() does not manage. Showing it means
+  // hiding the two panes Split() DOES manage -- not hiding #canvasdiv itself, which is a Split
+  // child and collapses the BOM table's height when it disappears.
+  var is3d = (layout == '3D') && window.has3D;
+  document.getElementById("frontcanvas").style.display = is3d ? "none" : "";
+  document.getElementById("backcanvas").style.display = is3d ? "none" : "";
+  document.getElementById("canvas3d").style.display = is3d ? "" : "none";
+  if (is3d) {
+    document.getElementById("view3d-btn").classList.add("depressed");
+    settings.canvaslayout = layout;
+    writeStorage("canvaslayout", layout);
+    resizeAll();
+    changeBomMode(settings.bommode);
+    return;
+  }
   switch (layout) {
     case 'F':
       document.getElementById("fl-btn").classList.add("depressed");
@@ -1316,6 +1335,12 @@ window.onload = function (e) {
     hideNetlistButton();
   }
   initDone = true;
+  if (!window.has3D) {
+    document.getElementById("view3d-btn").style.display = "none";
+    document.getElementById("bl-btn").classList.add("right-most-button");
+    document.getElementById("bl-btn").classList.remove("middle-button");
+    if (settings.canvaslayout == '3D') settings.canvaslayout = 'FB';
+  }
   setBomCheckboxes(document.getElementById("bomCheckboxes").value);
   // Triggers render
   changeBomLayout(settings.bomlayout);
