@@ -89,8 +89,8 @@ A **3D: only show placed parts** checkbox in the settings menu. With it on, the 
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
 
-**Land patterns stay visible, and selecting an unplaced row ghosts the part in** at 50 % opacity
-in the highlight colour. Both matter for the actual workflow: you need to see where a part goes,
+**Land patterns stay visible, and selecting an unplaced row ghosts the part in** at `GHOST_OPACITY`
+(0.32) with a reduced emissive. Both matter for the actual workflow: you need to see where a part goes,
 and what it looks like, *before* you can fit it and tick it off.
 
 **Pads and silkscreen are board-level, not children of the footprint node** -- so hiding a part
@@ -114,10 +114,11 @@ the node before designing a rule around it.**
 ### Layer colours
 
 KiCad **does** honour the stackup for silkscreen -- this board declares white silk and the GLB
-carries `#f5f5f5`. Soldermask keeps whatever colour it was exported with (black, here) and is
-made slightly translucent so the copper beneath reads through; copper itself is a flat `#808080`
-in the export, which is nobody's idea of copper, so that one is tinted. `MASK_COLOR` (null =
-leave it alone), `MASK_OPACITY` and `COPPER_COLOR` are at the top of `ibom3d.js`.
+carries `#f5f5f5` -- but gives copper a flat `#808080`, which is nobody's idea of copper. Both
+soldermask and copper are therefore tinted, and the mask is made slightly translucent so the
+copper beneath reads through. A green board is what reads as "a PCB" on screen whatever the real
+stackup says; set `MASK_COLOR = null` to keep the exported colour instead. `MASK_COLOR`,
+`MASK_OPACITY` and `COPPER_COLOR` are at the top of `ibom3d.js`.
 
 Identify the layers by **area**, not mesh count or height rank: the front full-board planes are
 the substrate and the mask -- lowest and highest of them -- and copper is the busiest plane

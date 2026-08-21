@@ -14,7 +14,12 @@ import { OrbitControls } from 'three-orbitcontrols';
 
 const HIGHLIGHT = 0xff3b30;
 const HIGHLIGHT_INTENSITY = 0.6;
-const GHOST_OPACITY = 0.5;   // an unplaced part, shown only while its BOM row is selected
+// An unplaced part, shown only while its BOM row is selected. At 0.5 opacity with the full
+// highlight emissive it rendered as a near-solid red block and read as a bug rather than a
+// preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
+// clearly see-through and let the shape, not the colour, carry the information.
+const GHOST_OPACITY = 0.32;
+const GHOST_EMISSIVE = 0.22;
 const PIN1_COLOR = 0x2f7bff;
 const PIN1_RADIUS_MM = 0.55;
 const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical FOV
@@ -23,12 +28,12 @@ const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical
 // value of a 3D view next to a BOM.
 const MIN_FIT_FRACTION = 0.30;
 const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not a solid
-// KiCad DOES honour the stackup for silkscreen -- this board declares white silk and exports it
-// as #f5f5f5 -- so the mask keeps whatever colour it was given rather than being recoloured to a
-// generic green. Set MASK_COLOR to a hex value to override it. Copper is a flat #808080 in the
-// export, which is not a copper colour by anyone's reckoning, so that one is tinted.
-const MASK_COLOR = null;
-const MASK_OPACITY = 0.7;    // translucent, so the copper underneath reads through
+// KiCad honours the stackup for silkscreen (this board declares white silk and exports #f5f5f5)
+// but gives copper a flat #808080, which is nobody's idea of copper. The mask is recoloured too:
+// a green board is what reads as "a PCB" on screen, whatever the stackup says the real one is.
+// Set MASK_COLOR to null to keep the exported colour instead.
+const MASK_COLOR = 0x1d7a44;
+const MASK_OPACITY = 0.8;    // translucent, so the copper underneath reads through
 const COPPER_COLOR = 0xe8c98a;
 
 var scene, camera, renderer, controls, root;
@@ -305,13 +310,17 @@ function isPlaced(ref) {
 
 function applyPlacedFilter() {
   if (!ready) return;
+  // Drop the highlight first: savedState records visibility as it was when the highlight was
+  // applied, so changing visibility underneath it would be reverted on the next clear.
+  const active = lastRefs;
+  clearHighlight();
   for (const fp of pcbdata.footprints) {
     const show = !placedOnly || isPlaced(fp.ref);
     // Hide the whole node. Pads and silkscreen are board-level, so they stay put.
     for (const node of nodesFor(fp.ref)) node.visible = show;
   }
-  updatePin1(lastRefs);
-  render();
+  if (active && active.length) highlight3D(active);
+  else { updatePin1(lastRefs); render(); }
 }
 
 function setPlacedOnly(on) {
@@ -420,6 +429,7 @@ function highlight3D(refs) {
           m.transparent = true;
           m.opacity = GHOST_OPACITY;
           m.depthWrite = false;
+          m.emissiveIntensity = GHOST_EMISSIVE;
         }
         o.material = m;
       });
