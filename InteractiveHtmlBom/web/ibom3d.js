@@ -21,6 +21,9 @@ const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical
 const MIN_FIT_FRACTION = 0.30;
 const PIN1_COLOR = 0x2f7bff;
 const PIN1_RADIUS_MM = 0.55;
+const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not a solid
+const ARTWORK_BAND = 2e-4;   // copper/mask/silk sit within 0.2 mm of a board face
+const GHOST_OPACITY = 0.5;   // an unplaced part, shown only while its BOM row is selected
 
 var scene, camera, renderer, controls, root;
 var boardRadius = 0;
@@ -32,6 +35,92 @@ var nodesByRef = {};         // refdes -> Object3D
 var savedMaterials = new Map();
 var ready = false;
 var pendingResize = false;
+
+var boardTopY = 0, boardBottomY = 0;
+
+/* Locate the two board faces.
+ *
+ * NOT by looking for a substrate solid -- KiCad exports the board as flat faces too, so this
+ * board yields four full-size planes (-0.05, 0, 1.46, 1.51 mm) of identical area and picking
+ * "the largest" returns whichever came first. Take every plane that spans essentially the whole
+ * board and use the extremes.
+ */
+function findBoardFaces(root) {
+  const planes = [];
+  var maxArea = 0;
+  root.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    o.geometry.computeBoundingBox();
+    const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    const area = (bb.max.x - bb.min.x) * (bb.max.z - bb.min.z);
+    planes.push({ area: area, min: bb.min.y, max: bb.max.y });
+    if (area > maxArea) maxArea = area;
+  });
+  var lo = Infinity, hi = -Infinity;
+  for (const pl of planes) {
+    if (pl.area < maxArea * 0.9) continue;
+    lo = Math.min(lo, pl.min);
+    hi = Math.max(hi, pl.max);
+  }
+  if (lo <= hi) { boardBottomY = lo; boardTopY = hi; }
+}
+
+function isArtwork(mesh) {
+  // Copper, soldermask and silkscreen are exported as FLAT faces lying on a board face.
+  // A component body is a solid, and sits above one. Thickness plus height separates them.
+  if (!mesh.geometry) return false;
+  mesh.geometry.computeBoundingBox();
+  const bb = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+  if (bb.max.y - bb.min.y >= FLAT_EPS) return false;
+  return Math.abs(bb.max.y - boardTopY) < ARTWORK_BAND ||
+         Math.abs(bb.min.y - boardBottomY) < ARTWORK_BAND;
+}
+
+/* A gentle depth bias for board artwork.
+ *
+ * NOTE the real cure for the stippling was the depth RANGE, not this -- see setDepthRange().
+ * Measured on this project's board the layers are 1.460 (substrate) / 1.500 (copper) /
+ * 1.535 (mask) / 1.545 mm (silk), so nothing is actually coplanar; the old far/near ratio of
+ * 10000 simply could not resolve the 10 um silk-to-mask gap (17.9 um per depth step against a
+ * 10 um gap). This stays as a cheap guard for boards where faces genuinely do coincide, and is
+ * deliberately a flat -1 rather than a ranked value, because large offsets make artwork bleed
+ * through component edges at grazing angles.
+ */
+function biasArtwork(root) {
+  const cache = new Map();
+  var n = 0;
+  root.traverse((o) => {
+    if (!o.isMesh || !isArtwork(o)) return;
+    n++;
+    var mat = cache.get(o.material.uuid);
+    if (!mat) {
+      mat = o.material.clone();
+      mat.polygonOffset = true;
+      mat.polygonOffsetFactor = -1;
+      mat.polygonOffsetUnits = -1;
+      cache.set(o.material.uuid, mat);
+    }
+    o.material = mat;
+  });
+  return n;
+}
+
+/* Split every footprint into its land pattern and its body.
+ *
+ * "Only show placed parts" must hide the BODY and keep the PADS -- an assembler needs to see
+ * where a part goes before fitting it, which is the whole point of the mode. */
+function classifyFootprints() {
+  var pads = 0;
+  for (const fp of pcbdata.footprints) {
+    const node = nodesByRef[fp.ref];
+    if (!node) continue;
+    const body = [];
+    node.traverse((o) => { if (o.isMesh && !isArtwork(o)) body.push(o); });
+    node.userData.bodyMeshes = body;
+    pads += node.children.length ? 1 : 0;
+  }
+  return pads;
+}
 
 function boardFrame() {
   // KiCad exports GLB in METRES. Everything here works in model units, so nothing needs
@@ -122,7 +211,12 @@ function applyPlacedFilter() {
   if (!ready) return;
   for (const fp of pcbdata.footprints) {
     const node = nodesByRef[fp.ref];
-    if (node) node.visible = !placedOnly || isPlaced(fp.ref);
+    if (!node) continue;
+    const show = !placedOnly || isPlaced(fp.ref);
+    // Hide the body only. The land pattern stays so you can see where the part goes.
+    const body = node.userData.bodyMeshes;
+    if (body) { for (const m of body) m.visible = show; }
+    else node.visible = show;
   }
   updatePin1(lastRefs);
   render();
@@ -141,19 +235,40 @@ function frame(box, immediate) {
   if (dir.lengthSq() < 1e-9) dir.set(0.4, 1, 0.7).normalize();
   controls.target.copy(sphere.center);
   camera.position.copy(sphere.center).addScaledVector(dir, dist);
-  camera.near = Math.max(dist / 1000, 1e-4);
-  camera.far = dist * 10;
-  camera.updateProjectionMatrix();
+  setDepthRange(dist);
   controls.update();
   if (immediate) render();
 }
 
+/* Keep the depth range tight around what is actually on screen.
+ *
+ * Copper, soldermask and silkscreen sit within ~20 um of each other and of the board. A
+ * perspective depth buffer concentrates its precision near the near plane, so a far/near ratio
+ * of 10000 (the old dist/1000 .. dist*10) leaves nowhere near enough resolution out at the board
+ * to separate them, and they stipple. Recomputed on every render because OrbitControls changes
+ * the distance without going through frame().
+ */
+function setDepthRange(dist) {
+  const near = Math.max(dist * 0.02, 1e-5);
+  const far = dist * 4 + boardRadius * 4;
+  if (camera.near !== near || camera.far !== far) {
+    camera.near = near;
+    camera.far = far;
+    camera.updateProjectionMatrix();
+  }
+}
+
 function render() {
-  if (ready) renderer.render(scene, camera);
+  if (!ready) return;
+  setDepthRange(camera.position.distanceTo(controls.target));
+  renderer.render(scene, camera);
 }
 
 function clearHighlight() {
-  for (const [mesh, mat] of savedMaterials) mesh.material = mat;
+  for (const [mesh, prev] of savedMaterials) {
+    mesh.material = prev.material;
+    mesh.visible = prev.visible;
+  }
   savedMaterials.clear();
 }
 
@@ -168,12 +283,23 @@ function highlight3D(refs) {
     const node = nodesByRef[ref];
     if (!node) continue;               // no 3D model for this part -- legitimate, skip it
     hit++;
+    // If the placed filter is hiding this part, show it as a translucent ghost for as long as
+    // it stays selected: an assembler needs to see the shape of the thing they are about to
+    // fit, and where it goes, before they can tick it off.
+    const ghost = placedOnly && !isPlaced(ref);
+    const body = new Set(node.userData.bodyMeshes || []);
     node.traverse((o) => {
       if (!o.isMesh) return;
-      savedMaterials.set(o, o.material);
+      savedMaterials.set(o, { material: o.material, visible: o.visible });
       const m = o.material.clone();
       m.emissive = new THREE.Color(HIGHLIGHT);
       m.emissiveIntensity = HIGHLIGHT_INTENSITY;
+      if (ghost && body.has(o)) {
+        m.transparent = true;
+        m.opacity = GHOST_OPACITY;
+        m.depthWrite = false;
+        o.visible = true;
+      }
       o.material = m;
     });
     box.expandByObject(node);
@@ -226,16 +352,22 @@ function init3D(glbDataUri) {
     root = gltf.scene;
     scene.add(root);
     root.traverse((o) => { if (o.name && !(o.name in nodesByRef)) nodesByRef[o.name] = o; });
+    root.updateWorldMatrix(true, true);
+    findBoardFaces(root);
+    const biased = biasArtwork(root);
+    console.log('ibom3d: board faces at ' + (boardBottomY * 1000).toFixed(3) + ' .. '
+                + (boardTopY * 1000).toFixed(3) + ' mm; depth-biased ' + biased + ' artwork faces');
 
     xform = solveTransform();
     if (xform) {
-      console.log('ibom3d: board->model fit from %d footprints, median residual %.3f mm, %d outliers',
-                  xform.n, xform.med * 1000, xform.outliers);
+      console.log('ibom3d: board->model fit from ' + xform.n + ' footprints, median residual '
+                  + (xform.med * 1000).toFixed(3) + ' mm, ' + xform.outliers + ' outliers');
       pin1Group = new THREE.Group();
       scene.add(pin1Group);
     } else {
       console.warn('ibom3d: could not fit board->model transform; pin 1 markers disabled');
     }
+    classifyFootprints();
     const f = boardFrame();
     boardRadius = f.box.getBoundingSphere(new THREE.Sphere()).radius;
     // Look down at the board from the front, tilted, rather than dead-on.

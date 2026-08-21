@@ -347,9 +347,9 @@ class Config:
         parser.add_argument('--glb', default=None, metavar='PATH',
                             help='Embed this binary glTF (.glb) file and enable the 3D '
                                  'board view. Produce one with `kicad-cli pcb export glb '
-                                 '--include-silkscreen --include-soldermask -o board.glb '
-                                 'board.kicad_pcb`. Its scene nodes must be named for '
-                                 'reference designators, which is what KiCad emits.')
+                                 '--include-pads --include-silkscreen --include-soldermask '
+                                 '-o board.glb board.kicad_pcb`. Its scene nodes must be named '
+                                 'for reference designators, which is what KiCad emits.')
         parser.add_argument('--version', action='version', version=version)
         # Html
         parser.add_argument('--dark-mode', help='Default to dark mode.',

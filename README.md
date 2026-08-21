@@ -31,7 +31,8 @@ Adds a **3D** button beside F / FB / B. Selecting a BOM row highlights those par
 scene and frames the camera on them.
 
 ```sh
-kicad-cli pcb export glb --include-silkscreen --include-soldermask -o board.glb board.kicad_pcb
+kicad-cli pcb export glb --include-pads --include-silkscreen --include-soldermask \
+    -o board.glb board.kicad_pcb
 generate_interactive_bom --glb board.glb board.kicad_pcb
 ```
 
@@ -45,9 +46,29 @@ navigable rather than a field of anonymous grey blocks. Measured on a 170 x 70 m
 |---|---|---|
 | none | 3.2 MB | 4.3 MB |
 | `--include-silkscreen --include-soldermask` | 5.4 MB | 7.2 MB |
-| `--include-tracks --include-pads` as well | 16.4 MB | 21.9 MB (don't) |
+| ...`--include-pads` as well (recommended) | 10.6 MB | 14.2 MB |
+| ...`--include-tracks` as well | 16.4 MB | 21.9 MB (not worth it) |
 
-three.js adds a further ~2 MB.
+three.js adds a further ~2 MB. Pads double the file and are worth it: without them an unplaced
+part's land pattern is invisible, which is exactly what an assembler needs to see.
+
+### Z-fighting, and what actually caused it
+
+The artwork layers stipple if you get this wrong. On this board they sit at 1.460 (substrate) /
+1.500 (copper) / 1.535 (mask) / 1.545 mm (silk) -- **nothing is coplanar**, the closest pair is
+10 um apart. The cause was depth-buffer precision, not coplanarity:
+
+| | near | far | ratio | depth step at the board |
+|---|---|---|---|---|
+| before | dist/1000 | dist x 10 | 10000 | **17.9 um** -- cannot resolve a 10 um gap |
+| after | dist x 0.02 | dist x 4 | 267 | **0.89 um** |
+
+A perspective depth buffer spends most of its precision near the near plane, so an absurd
+far/near ratio starves the far end. `setDepthRange()` recomputes it on every frame, because
+OrbitControls changes the viewing distance without going through the fit code. A flat
+`polygonOffset` of -1 on artwork faces remains as a cheap guard for boards where faces genuinely
+do coincide -- deliberately flat rather than ranked, since large offsets make artwork bleed
+through component edges at grazing angles.
 
 ### Pin 1
 
@@ -67,6 +88,17 @@ fit fails the dots are disabled with a console warning rather than drawn in the 
 A **3D: only show placed parts** checkbox in the settings menu. With it on, the 3D view shows
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
+
+**Land patterns stay visible, and selecting an unplaced row ghosts the part in** at 50 % opacity
+in the highlight colour. Both matter for the actual workflow: you need to see where a part goes,
+and what it looks like, *before* you can fit it and tick it off.
+
+That needs each footprint split into artwork and body, because a pad is a child of the footprint
+node -- hiding the node would hide the land pattern too. The split is geometric, since KiCad
+emits unnamed `mat_N` materials: artwork is a face with no thickness lying within 0.2 mm of a
+board face, a body is anything else. Note the board itself is exported as flat faces too, so
+"find the substrate solid" does not work -- there are four full-size planes here and
+`findBoardFaces()` takes the extremes of all of them.
 
 It rides iBOM's own `CHECKBOX_CHANGE_EVENT`, so no checkbox bookkeeping is patched. It follows
 whichever column `--mark-when-checked` names, defaulting to `Placed`.
