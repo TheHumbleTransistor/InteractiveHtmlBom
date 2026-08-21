@@ -73,7 +73,13 @@ through component edges at grazing angles.
 ### Pin 1
 
 Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`) -- no new
-control. Pin-1 pads get a small blue dot on the board face the part is on.
+control. Pin-1 pads get a small dot, coloured from the 2D view's own `--pin1-outline-color` CSS
+variable so it matches the canvas and follows dark mode for free.
+
+The dot sits on the **board face**, not on the footprint node's origin: the origin is skewed by
+any z offset the 3D model carries (`J5`'s is 3.85 mm, which left its dot hovering in mid-air),
+and the land pattern is where the mark belongs anyway. It is also drawn for parts the placed
+filter is hiding -- an unfitted part is exactly when you need to know which end pin 1 is.
 
 This needs a board-millimetres to model-units mapping, which is the one place the refdes trick
 does not reach. It is **solved at load time from every footprint present on both sides**, not

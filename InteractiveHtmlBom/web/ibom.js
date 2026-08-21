@@ -74,7 +74,9 @@ function setDarkMode(value) {
   if (initDone) {
     populateBomTable();
   }
+  if (window.updatePin1) window.updatePin1();
 }
+
 
 function setShowBOMColumn(field, value) {
   if (field === "references") {

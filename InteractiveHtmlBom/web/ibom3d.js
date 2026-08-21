@@ -20,7 +20,10 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // clearly see-through and let the shape, not the colour, carry the information.
 const GHOST_OPACITY = 0.6;
 const GHOST_EMISSIVE = 0.45;
-const PIN1_COLOR = 0x2f7bff;
+// Follow the 2D view's own CSS variable rather than hardcoding, so the dot matches the canvas
+// and tracks dark mode for free -- render.js reads the same property.
+const PIN1_COLOR_VAR = '--pin1-outline-color';
+const PIN1_COLOR_FALLBACK = 0xffb629;
 const PIN1_RADIUS_MM = 0.55;
 const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical FOV
 // Never close in past this fraction of the whole board's radius. Without it a 0805 fills the
@@ -347,15 +350,20 @@ function updatePin1(refs) {
   const wanted = (mode == "all") ? null : new Set(refs || []);
   const r = PIN1_RADIUS_MM * 0.001;
   const geom = new THREE.SphereGeometry(r, 12, 8);
-  const mat = new THREE.MeshBasicMaterial({ color: PIN1_COLOR });
+  const css = getComputedStyle(document.documentElement)
+    .getPropertyValue(PIN1_COLOR_VAR).trim();
+  const mat = new THREE.MeshBasicMaterial(
+    { color: css ? new THREE.Color(css) : new THREE.Color(PIN1_COLOR_FALLBACK) });
   for (const fp of pcbdata.footprints) {
-    const selected = wanted ? wanted.has(fp.ref) : true;
-    if (!selected) continue;
-    if (placedOnly && !isPlaced(fp.ref) && !wanted) continue;
-    const nodes = nodesFor(fp.ref);
-    // Sit the dot on the board face this footprint is on. Taking the node's own height rather
-    // than one global value keeps back-side parts correct without a special case.
-    const y = nodes.length ? nodes[0].getWorldPosition(new THREE.Vector3()).y : boardTopY;
+    if (wanted && !wanted.has(fp.ref)) continue;
+    // Deliberately NOT skipped when the placed filter hides the part: the dot marks the LAND
+    // PATTERN, which is still on screen, and an unfitted part is exactly when you need to know
+    // which end pin 1 is.
+    // Sit the dot on the BOARD FACE, not on the footprint node's origin. The origin is skewed
+    // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its dot hovering in
+    // mid-air -- and the dot belongs on the land pattern anyway, where it stays visible once the
+    // part itself is hidden.
+    const y = (fp.layer === 'B') ? boardBottomY : boardTopY;
     for (const pad of (fp.pads || [])) {
       if (!pad.pin1) continue;
       const dot = new THREE.Mesh(geom, mat);
