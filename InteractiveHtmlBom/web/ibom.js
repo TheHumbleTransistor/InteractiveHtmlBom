@@ -146,8 +146,9 @@ function setZoom3d(value) {
 }
 
 function setDim3d(value) {
-  settings.dim3d = value;
-  writeStorage("dim3d", value);
+  settings.dim3d = parseInt(value);
+  writeStorage("dim3d", settings.dim3d);
+  document.getElementById("dim3dLevel").textContent = settings.dim3d;
   // Re-apply immediately so toggling is visible with a row already selected. Safe to do here,
   // unlike the zoom slider: this rebuilds the highlight without moving the camera.
   if (window.applyDim3d) window.applyDim3d();

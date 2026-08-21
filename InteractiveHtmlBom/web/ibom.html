@@ -129,8 +129,10 @@
             DNP outlined
           </label>
           <label class="menu-label" id="dim3dContainer">
-            <input id="dim3dCheckbox" type="checkbox" onchange="setDim3d(this.checked)">
-            3D: dim board when a row is selected
+            <span>3D dim on select</span>
+            <span style="float: right"><span id="dim3dLevel">0</span>%</span>
+            <input id="dim3dSlider" type="range" min="0" max="100" value="0" class="slider"
+                   oninput="setDim3d(this.value)">
           </label>
           <label class="menu-label" id="placed3dOnlyContainer">
             <input id="placed3dOnlyCheckbox" type="checkbox" onchange="setPlaced3dOnly(this.checked)">

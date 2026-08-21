@@ -43,11 +43,12 @@ const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not
 // would not have helped, since a metal barely responds to a light at all.
 const ENV_INTENSITY = 0.62;
 const KEY_INTENSITY = 0.7;   // one soft directional, kept purely so shapes still read
-// "Dim board when a row is selected". Implemented by turning the LIGHTS down rather than by
-// recolouring materials: the highlight is emissive, and emissive is added independently of scene
-// lighting, so the selected parts keep glowing while everything else goes dark. Two lines,
-// against cloning and restoring ~36 materials across 7608 meshes.
-const DIM_FACTOR = 0.10;
+// "Dim board on select". Implemented by turning the LIGHTS down rather than by recolouring
+// materials: the highlight is emissive, and emissive is added independently of scene lighting, so
+// the selected parts keep glowing while everything else goes dark. Two lines, against cloning and
+// restoring ~36 materials across 7608 meshes.
+// The slider runs 0..100; DIM_FLOOR is the light scale at 100 %, and 0 % leaves the scene alone.
+const DIM_FLOOR = 0.10;
 // The selected part's diffuse darkens with everything else, so without this it reads as a muddy
 // dark part with a red tinge instead of a clean red one.
 const HIGHLIGHT_EMISSIVE_DIM = 1.1;
@@ -434,14 +435,16 @@ function setDepthRange(dist) {
  * The MIN_FIT_FRACTION clamp stays inside the target distance, so t = 1 is bit-for-bit the
  * behaviour that existed before the slider.
  */
-/* Dim everything but the selection, while a selection exists. */
-function dimActive() {
-  return typeof settings !== "undefined" && settings.dim3d && lastRefs.length > 0;
+/* Dim everything but the selection, while a selection exists. 0 = off, 1 = fully dimmed. */
+function dimFraction() {
+  if (typeof settings === "undefined" || settings.dim3d === undefined) return 0;
+  if (!lastRefs.length) return 0;
+  return Math.min(Math.max(settings.dim3d, 0), 100) / 100;
 }
 
 function applyDim() {
   if (!scene) return;
-  const f = dimActive() ? DIM_FACTOR : 1;
+  const f = THREE.MathUtils.lerp(1, DIM_FLOOR, dimFraction());
   scene.environmentIntensity = ENV_INTENSITY * f;
   if (keyLight) keyLight.intensity = KEY_INTENSITY * f;
   // Pin-1 dots are MeshBasicMaterial and therefore unlit, so they stay bright on the dimmed
@@ -502,14 +505,16 @@ function highlight3D(refs, noFrame) {
         if (!o.isMesh) return;
         savedState.set(o, { material: o.material, visible: o.visible });
         const m = o.material.clone();
-        const dim = dimActive();
+        // Ramp the emissive with the dim, or the selection darkens along with everything else and
+        // reads as a muddy dark part with a red tinge rather than a clean red one.
+        const d = dimFraction();
         m.emissive = new THREE.Color(HIGHLIGHT);
-        m.emissiveIntensity = dim ? HIGHLIGHT_EMISSIVE_DIM : HIGHLIGHT_INTENSITY;
+        m.emissiveIntensity = THREE.MathUtils.lerp(HIGHLIGHT_INTENSITY, HIGHLIGHT_EMISSIVE_DIM, d);
         if (ghost) {
           m.transparent = true;
           m.opacity = GHOST_OPACITY;
           m.depthWrite = false;
-          m.emissiveIntensity = dim ? HIGHLIGHT_EMISSIVE_DIM : GHOST_EMISSIVE;
+          m.emissiveIntensity = THREE.MathUtils.lerp(GHOST_EMISSIVE, HIGHLIGHT_EMISSIVE_DIM, d);
         }
         o.material = m;
       });

@@ -113,21 +113,24 @@ Two things worth knowing if you touch it:
 - `frame()` reads `settings.zoom3d` on every call rather than caching it. `initDefaults()` restores
   it at `window.onload` while the GLB loads asynchronously, so a mirrored copy is a race.
 
-### Dim board when a row is selected
+### Dim on select
 
-A checkbox in the settings menu, off by default. While a row is selected it darkens the board and
-every unselected component, leaving the red highlighted parts bright — useful on a dense board, and
-especially at 0 % auto-zoom where the camera no longer flies to the selection.
+A 0–100 % slider in the settings menu, 0 by default. While a row is selected it darkens the board
+and every unselected component, leaving the red highlighted parts bright — useful on a dense board,
+and especially at 0 % auto-zoom where the camera no longer flies to the selection.
 
 **Implemented by turning the lights down, not by recolouring materials.** The highlight is emissive,
 and emissive is added independently of scene lighting, so scaling `scene.environmentIntensity` and
 the key light darkens everything *except* the selection. Two lines, against cloning and restoring
 ~36 materials across 7608 meshes. Measured inside the 3D pane:
 
-| | board (non-red) | red highlight |
-|---|---|---|
-| off | 92.3 | 458 px, mean R 174.1 |
-| on | **33.7 — 37 % of original** | 485 px, **mean R 214.5** |
+| slider | `environmentIntensity` | board (non-red) | red highlight, mean R |
+|---|---|---|---|
+| 0 % | 0.62 | 92.3 | 174.1 |
+| 50 % | 0.341 | 74.9 | 200.6 |
+| 100 % | 0.062 | **34.7** | **214.5** |
+
+`DIM_FLOOR` is the light scale at 100 %; the slider lerps between 1 and it.
 
 The selected part's *diffuse* darkens along with everything else, so its emissive is raised while
 dimming (`HIGHLIGHT_EMISSIVE_DIM`) or it reads as a muddy dark part with a red tinge rather than a

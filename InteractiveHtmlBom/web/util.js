@@ -502,7 +502,7 @@ var settings = {
   redrawOnDrag: true,
   boardRotation: 0,
   zoom3d: 0,
-  dim3d: false,
+  dim3d: 0,
   offsetBackRotation: false,
   renderPads: true,
   renderReferences: true,
@@ -586,7 +586,6 @@ function initDefaults() {
   initBooleanSetting("redrawOnDrag", config.redraw_on_drag, "dragCheckbox", setRedrawOnDrag);
   initBooleanSetting("highlightRowOnClick", false, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
   initBooleanSetting("placed3donly", false, "placed3dOnlyCheckbox", setPlaced3dOnly);
-  initBooleanSetting("dim3d", false, "dim3dCheckbox", setDim3d);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
   var fields = ["checkboxes", "References"].concat(config.fields).concat(["Quantity"]);
@@ -623,6 +622,18 @@ function initDefaults() {
   }
   document.getElementById("zoom3dSlider").value = settings.zoom3d;
   document.getElementById("zoom3dLevel").textContent = settings.zoom3d;
+
+  // Was a checkbox before it became a slider, so an older profile can hold "true"/"false".
+  var storedDim = readStorage("dim3d");
+  if (storedDim === "true") {
+    settings.dim3d = 100;
+  } else if (storedDim === null || storedDim === "false" || isNaN(parseInt(storedDim))) {
+    settings.dim3d = 0;
+  } else {
+    settings.dim3d = parseInt(storedDim);
+  }
+  document.getElementById("dim3dSlider").value = settings.dim3d;
+  document.getElementById("dim3dLevel").textContent = settings.dim3d;
 
   initBooleanSetting("offsetBackRotation", config.offset_back_rotation, "offsetBackRotationCheckbox", setOffsetBackRotation);
 
