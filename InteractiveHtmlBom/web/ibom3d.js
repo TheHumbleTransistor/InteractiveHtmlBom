@@ -23,11 +23,13 @@ const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical
 // value of a 3D view next to a BOM.
 const MIN_FIT_FRACTION = 0.30;
 const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not a solid
-// KiCad's GLB carries no board colours -- it exported this board's BLACK mask as #f5f5f5 -- so
-// every layer arrives in near-identical grey and the board reads as a featureless slab.
-// Tinting is therefore the viewer's job. Change these if your board is not green/gold.
-const MASK_COLOR = 0x18683a;
-const COPPER_COLOR = 0xb08d3f;
+// KiCad DOES honour the stackup for silkscreen -- this board declares white silk and exports it
+// as #f5f5f5 -- so the mask keeps whatever colour it was given rather than being recoloured to a
+// generic green. Set MASK_COLOR to a hex value to override it. Copper is a flat #808080 in the
+// export, which is not a copper colour by anyone's reckoning, so that one is tinted.
+const MASK_COLOR = null;
+const MASK_OPACITY = 0.7;    // translucent, so the copper underneath reads through
+const COPPER_COLOR = 0xe8c98a;
 
 var scene, camera, renderer, controls, root;
 var nodesByRef = {};         // refdes -> [Object3D]; a refdes can own more than one node
@@ -105,70 +107,41 @@ function findBoardFaces(root) {
   if (lo <= hi) { boardBottomY = lo; boardTopY = hi; }
 }
 
-/* Find how far the artwork stack reaches above and below the board.
+/* What counts as board artwork -- measured, not assumed.
  *
- * Three earlier attempts were wrong, and the wrong ones are worth naming:
- *   - a fixed +/-0.2 mm window caught a TSSOP's gull-wing leads at 1.58-1.70 mm, so hiding a
- *     part left a flattened ghost of its leads behind;
- *   - "a plane shared by >=25% of footprints is a board layer" caught 1.995 mm, which is just
- *     the top face of ~60 identical 0805s;
- *   - "the median footprint node origin is the seating plane" landed on 1.545 mm, because many
- *     3D models carry their own z offset and the origins are scattered.
+ * Everything under a footprint node is COMPONENT geometry; copper, soldermask, silkscreen and
+ * the substrate are all board-level. Counted on this board:
  *
- * What separates them cleanly, measured: silkscreen at 1.545 mm is touched by 139 of 142
- * footprints, while the next plane up (1.563 mm) is touched by 6. So a plane is board artwork if
- * it is either found outside every footprint, or shared by MOST footprints -- and, to survive a
- * board that is mostly one package, it must also lie close to a board face.
+ *     plane (mm)   under footprints   board-level
+ *     1.545               371              0        component bottom faces
+ *     1.535                 0           1153        silkscreen
+ *     1.510                 0              1        soldermask
+ *     1.500                 0            582        copper pads
+ *     1.460                 0            500        substrate
+ *
+ * That single table removes a whole class of bug. Earlier versions tried to split each footprint
+ * into "artwork" and "body" by height, on the belief that pads were children of the footprint
+ * node. They are not. Every height-based rule tried instead caught component geometry -- a
+ * +/-0.2 mm window took TSSOP leads at 1.58-1.70 mm, and "a plane shared by most footprints"
+ * took the 1.545 mm bottom faces, which is true of every SMD's underside. Hiding a part left a
+ * flat cross-section of it welded to the board.
+ *
+ * So: hide the whole footprint node. Pads and silkscreen survive because they were never inside
+ * it.
  */
-var frontLimit = 0, backLimit = 0;
-const NEAR_BOARD = 2e-4;            // artwork is within 0.2 mm of a board face
-const SHARED_FRACTION = 0.5;
+var footprintMeshes = new Set();
 
-function findArtworkLimits(root) {
-  const perPlane = new Map();       // plane key -> Set of refdes
-  const outside = new Set();
-  var nFootprints = 0;
-  const inFootprint = new Set();
+function indexFootprintMeshes() {
+  footprintMeshes.clear();
   for (const ref in nodesByRef) {
-    nFootprints++;
     for (const node of nodesByRef[ref]) {
-      node.traverse((o) => {
-        if (!o.isMesh) return;
-        inFootprint.add(o);
-        const y = meshPlaneY(o);
-        if (y === null) return;
-        const k = PLANE_KEY(y);
-        if (!perPlane.has(k)) perPlane.set(k, new Set());
-        perPlane.get(k).add(ref);
-      });
-    }
-  }
-  root.traverse((o) => {
-    if (!o.isMesh || inFootprint.has(o)) return;
-    const y = meshPlaneY(o);
-    if (y !== null) outside.add(PLANE_KEY(y));
-  });
-
-  const need = Math.max(4, nFootprints * SHARED_FRACTION);
-  const isLayer = (k) => outside.has(k) || (perPlane.get(k) || new Set()).size >= need;
-  frontLimit = boardTopY;
-  backLimit = boardBottomY;
-  const keys = new Set([...outside, ...perPlane.keys()]);
-  for (const k of keys) {
-    if (!isLayer(k)) continue;
-    const y = k / 1e6;
-    if (y > boardTopY - NEAR_BOARD && y < boardTopY + NEAR_BOARD) {
-      frontLimit = Math.max(frontLimit, y);
-    }
-    if (y < boardBottomY + NEAR_BOARD && y > boardBottomY - NEAR_BOARD) {
-      backLimit = Math.min(backLimit, y);
+      node.traverse((o) => { if (o.isMesh) footprintMeshes.add(o); });
     }
   }
 }
 
 function isArtwork(mesh) {
-  const y = meshPlaneY(mesh);
-  return y !== null && y <= frontLimit + 1e-6 && y >= backLimit - 1e-6;
+  return !footprintMeshes.has(mesh) && meshPlaneY(mesh) !== null;
 }
 
 /* Tint the soldermask and copper so they are distinguishable.
@@ -222,13 +195,20 @@ function tintBoardLayers(root) {
   if (copper !== null) tint.set(copper, COPPER_COLOR);
   const cache = new Map();
   for (const f of flats) {
+    if (!tint.has(f.k)) continue;
     const col = tint.get(f.k);
-    if (col === undefined) continue;
     const key = f.mesh.material.uuid + ':' + col;
     var mat = cache.get(key);
     if (!mat) {
       mat = f.mesh.material.clone();
-      mat.color = new THREE.Color(col);
+      if (col !== null) mat.color = new THREE.Color(col);
+      if (f.k === mask) {
+        // depthWrite stays ON: the mask must still occlude anything genuinely behind it, and
+        // three.js draws transparent materials after the opaque pass, so copper and substrate
+        // are already in the buffer to blend against.
+        mat.transparent = true;
+        mat.opacity = MASK_OPACITY;
+      }
       cache.set(key, mat);
     }
     f.mesh.material = mat;
@@ -262,24 +242,6 @@ function biasArtwork(root) {
     o.material = mat;
   });
   return n;
-}
-
-/* Split every footprint into its land pattern and its body.
- *
- * "Only show placed parts" must hide the BODY and keep the PADS -- an assembler needs to see
- * where a part goes before fitting it, which is the whole point of the mode.
- */
-function classifyFootprints() {
-  var bodies = 0;
-  for (const ref in nodesByRef) {
-    for (const node of nodesByRef[ref]) {
-      const body = [];
-      node.traverse((o) => { if (o.isMesh && !isArtwork(o)) body.push(o); });
-      node.userData.bodyMeshes = body;
-      bodies += body.length;
-    }
-  }
-  return bodies;
 }
 
 function boardFrame() {
@@ -345,12 +307,8 @@ function applyPlacedFilter() {
   if (!ready) return;
   for (const fp of pcbdata.footprints) {
     const show = !placedOnly || isPlaced(fp.ref);
-    for (const node of nodesFor(fp.ref)) {
-      // Hide the body only. The land pattern stays so you can see where the part goes.
-      const body = node.userData.bodyMeshes;
-      if (body) { for (const m of body) m.visible = show; }
-      else node.visible = show;
-    }
+    // Hide the whole node. Pads and silkscreen are board-level, so they stay put.
+    for (const node of nodesFor(fp.ref)) node.visible = show;
   }
   updatePin1(lastRefs);
   render();
@@ -427,9 +385,9 @@ function render() {
 }
 
 function clearHighlight() {
-  for (const [mesh, prev] of savedState) {
-    mesh.material = prev.material;
-    mesh.visible = prev.visible;
+  for (const [obj, prev] of savedState) {
+    if (prev.material) obj.material = prev.material;
+    obj.visible = prev.visible;
   }
   savedState.clear();
 }
@@ -450,18 +408,18 @@ function highlight3D(refs) {
     // fit, and where it goes, before they can tick it off.
     const ghost = placedOnly && !isPlaced(ref);
     for (const node of nodes) {
-      const body = new Set(node.userData.bodyMeshes || []);
+      savedState.set(node, { material: null, visible: node.visible });
+      if (ghost) node.visible = true;
       node.traverse((o) => {
         if (!o.isMesh) return;
         savedState.set(o, { material: o.material, visible: o.visible });
         const m = o.material.clone();
         m.emissive = new THREE.Color(HIGHLIGHT);
         m.emissiveIntensity = HIGHLIGHT_INTENSITY;
-        if (ghost && body.has(o)) {
+        if (ghost) {
           m.transparent = true;
           m.opacity = GHOST_OPACITY;
           m.depthWrite = false;
-          o.visible = true;
         }
         o.material = m;
       });
@@ -519,14 +477,12 @@ function init3D(glbDataUri) {
 
     indexNodes(root);
     findBoardFaces(root);
-    findArtworkLimits(root);
+    indexFootprintMeshes();
     const tinted = tintBoardLayers(root);
     const biased = biasArtwork(root);
-    const bodies = classifyFootprints();
     console.log('ibom3d: board ' + (boardBottomY * 1000).toFixed(3) + ' .. '
-      + (boardTopY * 1000).toFixed(3) + ' mm, artwork ' + (backLimit * 1000).toFixed(3) + ' .. '
-      + (frontLimit * 1000).toFixed(3) + ' mm, '
-      + biased + ' artwork faces, ' + bodies + ' body meshes'
+      + (boardTopY * 1000).toFixed(3) + ' mm, ' + biased + ' artwork faces, '
+      + footprintMeshes.size + ' component meshes'
       + (tinted ? ', tinted mask@' + tinted.mask.toFixed(3)
                 + ' copper@' + tinted.copper.toFixed(3) : ', not tinted'));
 

@@ -93,40 +93,37 @@ and at a glance you see what the half-built board in front of you should look li
 in the highlight colour. Both matter for the actual workflow: you need to see where a part goes,
 and what it looks like, *before* you can fit it and tick it off.
 
-That needs each footprint split into artwork and body, because a pad is a child of the footprint
-node -- hiding the node would hide the land pattern too. KiCad emits unnamed `mat_N` materials,
-so the split has to be geometric, and getting it right took three attempts:
+**Pads and silkscreen are board-level, not children of the footprint node** -- so hiding a part
+is simply `node.visible = false` and the land pattern stays put. Counted on this board:
 
-| rule | why it failed |
-|---|---|
-| flat face within 0.2 mm of a board face | caught a TSSOP's gull-wing leads at 1.58-1.70 mm, so every hidden part left a flattened ghost of its leads |
-| plane shared by >=25% of footprints | caught 1.995 mm -- the top face of ~60 identical 0805s |
-| median footprint node origin = seating plane | landed on 1.545 mm, because many 3D models carry their own z offset |
+| plane (mm) | under footprints | board-level | what |
+|---|---|---|---|
+| 1.545 | **371** | 0 | component bottom faces |
+| 1.535 | 0 | 1153 | silkscreen |
+| 1.510 | 0 | 1 | soldermask, one full-board mesh |
+| 1.500 | 0 | 582 | copper pads |
+| 1.460 | 0 | 500 | substrate |
 
-What works: a plane is board artwork if it is found **outside every footprint**, or shared by
-**most** footprints, *and* lies within 0.2 mm of a board face. Measured, silkscreen at 1.545 mm
-is touched by 139 of 142 footprints while the next plane up (1.563 mm) is touched by 6.
+Earlier versions tried to split each footprint into "artwork" and "body" by height, on the belief
+that pads were inside it. They are not, and every height rule tried caught component geometry
+instead -- a +/-0.2 mm window took TSSOP leads at 1.58-1.70 mm, and "a plane shared by most
+footprints" took the 1.545 mm bottom faces, which is true of every SMD's underside. Hiding a part
+left a flat cross-section of it welded to the board. **Measure which meshes are actually inside
+the node before designing a rule around it.**
 
 ### Layer colours
 
-KiCad's GLB carries **no board colours** -- it exported this board's *black* soldermask as
-`#f5f5f5` -- so every layer arrives in near-identical grey and the board reads as a featureless
-slab. `tintBoardLayers()` colours the mask and copper; `MASK_COLOR` and `COPPER_COLOR` are at the
-top of `ibom3d.js`.
+KiCad **does** honour the stackup for silkscreen -- this board declares white silk and the GLB
+carries `#f5f5f5`. Soldermask keeps whatever colour it was exported with (black, here) and is
+made slightly translucent so the copper beneath reads through; copper itself is a flat `#808080`
+in the export, which is nobody's idea of copper, so that one is tinted. `MASK_COLOR` (null =
+leave it alone), `MASK_OPACITY` and `COPPER_COLOR` are at the top of `ibom3d.js`.
 
-Identify the layers by **area**, not by mesh count or height rank:
-
-| y (mm) | meshes | largest mesh | what it is |
-|---|---|---|---|
-| 1.535 | 1153 | small | silkscreen glyphs |
-| 1.510 | **1** | 0.0119 m2 = whole board | **soldermask** -- one mesh, holes at the pads |
-| 1.500 | 582 | small | **copper pads** |
-| 1.460 | 500 | 0.0119 m2 = whole board | substrate |
-
-Ranking planes from the top puts the green on the silkscreen text, and a "more than 20 meshes"
-filter discards the soldermask entirely. The front full-board planes are the substrate and the
-mask -- lowest and highest of them -- and copper is the busiest plane between the two. For the
-same reason `findBoardFaces()` cannot look for a substrate *solid*: the board is flat faces too.
+Identify the layers by **area**, not mesh count or height rank: the front full-board planes are
+the substrate and the mask -- lowest and highest of them -- and copper is the busiest plane
+between the two. Ranking from the top puts the tint on the silkscreen, and a "more than 20
+meshes" filter discards the soldermask outright, it being a single mesh. For the same reason
+`findBoardFaces()` cannot look for a substrate *solid*: the board is flat faces too.
 
 It rides iBOM's own `CHECKBOX_CHANGE_EVENT`, so no checkbox bookkeeping is patched. It follows
 whichever column `--mark-when-checked` names, defaulting to `Placed`.
