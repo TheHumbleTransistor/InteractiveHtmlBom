@@ -136,6 +136,15 @@ function setHighlightPin1(value) {
   redrawIfInitDone();
 }
 
+/* Does NOT re-frame the current selection. `oninput` fires continuously while dragging, and
+ * because the move is relative to the current camera each re-frame would compound -- the view
+ * would fly in as you drag the slider. The new value applies on the next selection. */
+function setZoom3d(value) {
+  settings.zoom3d = parseInt(value);
+  writeStorage("zoom3d", settings.zoom3d);
+  document.getElementById("zoom3dLevel").textContent = settings.zoom3d;
+}
+
 function setPlaced3dOnly(value) {
   writeStorage("placed3donly", value);
   settings.placed3donly = value;
@@ -1347,6 +1356,7 @@ window.onload = function (e) {
   if (!window.has3D) {
     document.getElementById("view3d-btn").style.display = "none";
     document.getElementById("placed3dOnlyContainer").style.display = "none";
+    document.getElementById("zoom3dContainer").style.display = "none";
     document.getElementById("bl-btn").classList.add("right-most-button");
     document.getElementById("bl-btn").classList.remove("middle-button");
     if (settings.canvaslayout == '3D') settings.canvaslayout = 'FB';

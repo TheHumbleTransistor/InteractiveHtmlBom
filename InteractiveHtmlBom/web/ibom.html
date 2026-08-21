@@ -164,6 +164,12 @@
             <span style="float: right"><span id="rotationDegree">0</span>&#176;</span>
             <input id="boardRotation" type="range" min="-36" max="36" value="0" class="slider" oninput="setBoardRotation(this.value)">
           </label>
+          <label class="menu-label" id="zoom3dContainer">
+            <span>3D zoom on select</span>
+            <span style="float: right"><span id="zoom3dLevel">0</span>%</span>
+            <input id="zoom3dSlider" type="range" min="0" max="100" value="0" class="slider"
+                   oninput="setZoom3d(this.value)">
+          </label>
           <label class="menu-label">
             <input id="offsetBackRotationCheckbox" type="checkbox" onchange="setOffsetBackRotation(this.checked)">
             Offset back rotation

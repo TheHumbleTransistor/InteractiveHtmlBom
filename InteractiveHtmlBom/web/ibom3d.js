@@ -70,6 +70,17 @@ var xform = null;            // solved board-mm -> model-units mapping, see solv
 var placedOnly = false;
 var lastRefs = [];
 
+/* "3D zoom on select", 0..100. Read straight off `settings` on every use rather than mirrored
+ * into a module variable: initDefaults() restores it at window.onload while the GLB loads
+ * asynchronously, so a cached copy is a race. This module already reads highlightpin1,
+ * markWhenChecked and checkboxStoredRefs the same way. */
+function zoomFraction() {
+  if (typeof settings !== "undefined" && settings.zoom3d !== undefined) {
+    return settings.zoom3d / 100;
+  }
+  return 0;                  // matches the default in util.js; only reached if settings is absent
+}
+
 function nodesFor(ref) {
   return nodesByRef[ref] || [];
 }
@@ -405,17 +416,29 @@ function setDepthRange(dist) {
   }
 }
 
-function frame(box, immediate) {
+/* Move the camera toward a fit on `box`, travelling a fraction `t` of the way there.
+ *
+ * t comes from the "3D zoom on select" slider unless a caller overrides it. The fraction is
+ * RELATIVE to wherever the camera currently is, which is what makes t = 0 mean "do not move at
+ * all" rather than "frame the whole board". The trade that buys: selecting the same row twice at
+ * 50 % lands 75 % of the way in, since each move starts from the last one.
+ *
+ * The MIN_FIT_FRACTION clamp stays inside the target distance, so t = 1 is bit-for-bit the
+ * behaviour that existed before the slider.
+ */
+function frame(box, immediate, t) {
+  if (t === undefined) t = zoomFraction();
   const sphere = box.getBoundingSphere(new THREE.Sphere());
   const radius = Math.max(sphere.radius, boardRadius * MIN_FIT_FRACTION);
-  const dist = radius * FIT_MARGIN / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const fit = radius * FIT_MARGIN / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2);
   const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
   if (dir.lengthSq() < 1e-9) dir.set(0.4, 1, 0.7).normalize();
-  controls.target.copy(sphere.center);
-  camera.position.copy(sphere.center).addScaledVector(dir, dist);
+  const dist = THREE.MathUtils.lerp(camera.position.distanceTo(controls.target), fit, t);
+  controls.target.lerp(sphere.center, t);
+  camera.position.copy(controls.target).addScaledVector(dir, dist);
   setDepthRange(dist);
   controls.update();
-  if (immediate) render();
+  if (immediate) render();          // at t = 0 nothing moved, but the highlight still must draw
 }
 
 function render() {
@@ -550,7 +573,7 @@ function init3D(glbDataUri) {
     ready = true;
     window.__ibom3dReady = true;
     resize3D();
-    frame(f.box, true);
+    frame(f.box, true, 1);
     applyPlacedFilter();
     if (typeof EventHandler !== "undefined") {
       // iBOM's own extension point, so nothing in their checkbox code needs patching.

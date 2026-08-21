@@ -501,6 +501,7 @@ var settings = {
   placed3donly: false,
   redrawOnDrag: true,
   boardRotation: 0,
+  zoom3d: 0,
   offsetBackRotation: false,
   renderPads: true,
   renderReferences: true,
@@ -611,6 +612,16 @@ function initDefaults() {
   }
   document.getElementById("boardRotation").value = settings.boardRotation / 5;
   document.getElementById("rotationDegree").textContent = settings.boardRotation;
+
+  settings.zoom3d = readStorage("zoom3d");
+  if (settings.zoom3d === null) {
+    settings.zoom3d = 0;
+  } else {
+    settings.zoom3d = parseInt(settings.zoom3d);
+  }
+  document.getElementById("zoom3dSlider").value = settings.zoom3d;
+  document.getElementById("zoom3dLevel").textContent = settings.zoom3d;
+
   initBooleanSetting("offsetBackRotation", config.offset_back_rotation, "offsetBackRotationCheckbox", setOffsetBackRotation);
 
   settings.netColors = JSON.parse(readStorage("netColors")) || {};
