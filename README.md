@@ -122,6 +122,27 @@ footprints" took the 1.545 mm bottom faces, which is true of every SMD's undersi
 left a flat cross-section of it welded to the board. **Measure which meshes are actually inside
 the node before designing a rule around it.**
 
+### Lighting
+
+**Every component material KiCad exports is `metalness: 1`** -- all 7608 meshes on this board.
+A fully metallic surface has no diffuse response, so with only lights and nothing to reflect it
+can only render dark: a connector housing whose material is pure white measured RGB ~120, i.e.
+grey. Raising light intensities does not help, because a metal barely responds to a light at all.
+
+The fix is image-based lighting -- `RoomEnvironment` through `PMREMGenerator`, giving those metals
+a full hemisphere to reflect -- plus one soft directional light so shapes still read. A white part
+now renders ~210 from any angle.
+
+**Tone mapping is not cosmetic here.** Without it, values above 1.0 clip and a white part becomes a
+flat 255 across its whole face, losing all shape. `NeutralToneMapping` (Khronos PBR Neutral) rolls
+highlights off while holding colours where they are; it exists for product visualisation, which is
+exactly this job. ACES works too but shifts hue. Measured on the same white part: **0.06 % of
+pixels clipped**, against a blown-out face before.
+
+`ENV_INTENSITY`, `KEY_INTENSITY` and `TONE_EXPOSURE` are at the top of `ibom3d.js`. Note that
+changing them changes the *board* too -- `MASK_COLOR` and `COPPER_COLOR` were both retuned darker
+once IBL raised the overall exposure.
+
 ### Layer colours
 
 KiCad **does** honour the stackup for silkscreen -- this board declares white silk and the GLB

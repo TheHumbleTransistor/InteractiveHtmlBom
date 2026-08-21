@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three-gltfloader';
 import { OrbitControls } from 'three-orbitcontrols';
+import { RoomEnvironment } from 'three-roomenv';
 
 const HIGHLIGHT = 0xff3b30;
 const HIGHLIGHT_INTENSITY = 0.6;
@@ -35,9 +36,21 @@ const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not
 // but gives copper a flat #808080, which is nobody's idea of copper. The mask is recoloured too:
 // a green board is what reads as "a PCB" on screen, whatever the stackup says the real one is.
 // Set MASK_COLOR to null to keep the exported colour instead.
-const MASK_COLOR = 0x1d7a44;
+// KiCad exports EVERY component material as metalness 1 -- all 7608 meshes on this board. A full
+// metal has no diffuse response, so with only lights and no environment to reflect it can only
+// render dark: a pure-white connector housing measured RGB ~120, i.e. grey. Image-based lighting
+// gives those metals something to reflect, which is the actual fix; raising light intensities
+// would not have helped, since a metal barely responds to a light at all.
+const ENV_INTENSITY = 0.62;
+const KEY_INTENSITY = 0.7;   // one soft directional, kept purely so shapes still read
+// Tone mapping matters here, and NOT for the usual cinematic reasons. Without it, values above
+// 1.0 simply clip: a white part rendered a flat 255 across its whole face and lost all shape.
+// Khronos PBR Neutral rolls the highlights off while holding colours where they are -- it exists
+// for product visualisation, which is exactly this. ACES would work too but shifts hue.
+const TONE_EXPOSURE = 0.75;
+const MASK_COLOR = 0x11512c;
 const MASK_OPACITY = 0.8;    // translucent, so the copper underneath reads through
-const COPPER_COLOR = 0xe8c98a;
+const COPPER_COLOR = 0xc4913c;   // retuned darker/warmer once IBL raised the overall exposure
 // KiCad exports copper as metalness 1 / roughness 0.4. A fully metallic surface has NO diffuse
 // term, so with no environment map to reflect it is black except where a light happens to catch
 // it -- gold from straight above, near-black from an angle. Drop it to a matte dielectric so the
@@ -484,12 +497,17 @@ function init3D(glbDataUri) {
   camera = new THREE.PerspectiveCamera(35, 1, 0.001, 100);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
+  renderer.toneMapping = THREE.NeutralToneMapping || THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = TONE_EXPOSURE;
   el.appendChild(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-  const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(1, 2, 1.5);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.7); fill.position.set(-1.2, -0.6, 0.5);
-  scene.add(key, fill);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = ENV_INTENSITY;
+  pmrem.dispose();                       // one-time GPU pass; nothing to keep afterwards
+  const key = new THREE.DirectionalLight(0xffffff, KEY_INTENSITY);
+  key.position.set(1, 2, 1.5);
+  scene.add(key);
 
   controls = new OrbitControls(camera, renderer.domElement);
   // No damping: the board stops the instant you let go. Damping is also the only thing that

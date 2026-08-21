@@ -295,6 +295,7 @@ def get_three_js_importmap(get_file_content):
         'three': data_uri(three),
         'three-gltfloader': data_uri(gltf),
         'three-orbitcontrols': data_uri(get_file_content('three/OrbitControls.js')),
+        'three-roomenv': data_uri(get_file_content('three/RoomEnvironment.js')),
         'three-bgu': data_uri(get_file_content('three/BufferGeometryUtils.js')),
     }
     return '<script type="importmap">%s</script>' % json.dumps({'imports': imports})
