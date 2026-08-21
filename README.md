@@ -89,8 +89,13 @@ A **3D: only show placed parts** checkbox in the settings menu. With it on, the 
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
 
-**Land patterns stay visible, and selecting an unplaced row ghosts the part in** at `GHOST_OPACITY`
-(0.32) with a reduced emissive. Both matter for the actual workflow: you need to see where a part goes,
+**Land patterns stay visible, and selecting an unplaced row ghosts the part in** at
+`GHOST_OPACITY` / `GHOST_EMISSIVE`, so you can see the shape of the thing you are about to fit.
+
+Nothing is overlaid on the components themselves -- no tint, no shading, no transparency -- so a
+populated board renders as it really looks and the red highlight is the only thing distinguishing
+a selection. Verified by material inspection: of 7608 component meshes, 0 are transparent, 0
+share a tinted material and 0 carry a polygon offset. Both matter for the actual workflow: you need to see where a part goes,
 and what it looks like, *before* you can fit it and tick it off.
 
 **Pads and silkscreen are board-level, not children of the footprint node** -- so hiding a part

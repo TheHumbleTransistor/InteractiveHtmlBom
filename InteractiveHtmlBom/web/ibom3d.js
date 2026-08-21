@@ -18,8 +18,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-const GHOST_OPACITY = 0.32;
-const GHOST_EMISSIVE = 0.22;
+const GHOST_OPACITY = 0.6;
+const GHOST_EMISSIVE = 0.45;
 const PIN1_COLOR = 0x2f7bff;
 const PIN1_RADIUS_MM = 0.55;
 const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical FOV
