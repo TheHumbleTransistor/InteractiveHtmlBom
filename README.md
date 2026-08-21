@@ -113,6 +113,30 @@ Two things worth knowing if you touch it:
 - `frame()` reads `settings.zoom3d` on every call rather than caching it. `initDefaults()` restores
   it at `window.onload` while the GLB loads asynchronously, so a mirrored copy is a race.
 
+### Dim board when a row is selected
+
+A checkbox in the settings menu, off by default. While a row is selected it darkens the board and
+every unselected component, leaving the red highlighted parts bright — useful on a dense board, and
+especially at 0 % auto-zoom where the camera no longer flies to the selection.
+
+**Implemented by turning the lights down, not by recolouring materials.** The highlight is emissive,
+and emissive is added independently of scene lighting, so scaling `scene.environmentIntensity` and
+the key light darkens everything *except* the selection. Two lines, against cloning and restoring
+~36 materials across 7608 meshes. Measured inside the 3D pane:
+
+| | board (non-red) | red highlight |
+|---|---|---|
+| off | 92.3 | 458 px, mean R 174.1 |
+| on | **33.7 — 37 % of original** | 485 px, **mean R 214.5** |
+
+The selected part's *diffuse* darkens along with everything else, so its emissive is raised while
+dimming (`HIGHLIGHT_EMISSIVE_DIM`) or it reads as a muddy dark part with a red tinge rather than a
+clean red one. `DIM_FACTOR` controls how far down everything else goes.
+
+Only active while something is selected — deselecting restores the lights, verified. Pin-1 dots use
+`MeshBasicMaterial` and are unlit, so they stay bright on the dimmed board; deliberate, they are a
+marker rather than scenery.
+
 ### Only show placed parts
 
 A **3D: only show placed parts** checkbox in the settings menu. With it on, the 3D view shows

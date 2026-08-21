@@ -43,6 +43,14 @@ const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not
 // would not have helped, since a metal barely responds to a light at all.
 const ENV_INTENSITY = 0.62;
 const KEY_INTENSITY = 0.7;   // one soft directional, kept purely so shapes still read
+// "Dim board when a row is selected". Implemented by turning the LIGHTS down rather than by
+// recolouring materials: the highlight is emissive, and emissive is added independently of scene
+// lighting, so the selected parts keep glowing while everything else goes dark. Two lines,
+// against cloning and restoring ~36 materials across 7608 meshes.
+const DIM_FACTOR = 0.10;
+// The selected part's diffuse darkens with everything else, so without this it reads as a muddy
+// dark part with a red tinge instead of a clean red one.
+const HIGHLIGHT_EMISSIVE_DIM = 1.1;
 // Tone mapping matters here, and NOT for the usual cinematic reasons. Without it, values above
 // 1.0 simply clip: a white part rendered a flat 255 across its whole face and lost all shape.
 // Khronos PBR Neutral rolls the highlights off while holding colours where they are -- it exists
@@ -58,7 +66,7 @@ const COPPER_COLOR = 0xc4913c;   // retuned darker/warmer once IBL raised the ov
 const COPPER_METALNESS = 0.0;
 const COPPER_ROUGHNESS = 0.7;
 
-var scene, camera, renderer, controls, root;
+var scene, camera, renderer, controls, root, keyLight;
 var nodesByRef = {};         // refdes -> [Object3D]; a refdes can own more than one node
 var savedState = new Map();  // mesh -> {material, visible} while highlighted
 var ready = false;
@@ -426,6 +434,20 @@ function setDepthRange(dist) {
  * The MIN_FIT_FRACTION clamp stays inside the target distance, so t = 1 is bit-for-bit the
  * behaviour that existed before the slider.
  */
+/* Dim everything but the selection, while a selection exists. */
+function dimActive() {
+  return typeof settings !== "undefined" && settings.dim3d && lastRefs.length > 0;
+}
+
+function applyDim() {
+  if (!scene) return;
+  const f = dimActive() ? DIM_FACTOR : 1;
+  scene.environmentIntensity = ENV_INTENSITY * f;
+  if (keyLight) keyLight.intensity = KEY_INTENSITY * f;
+  // Pin-1 dots are MeshBasicMaterial and therefore unlit, so they stay bright on the dimmed
+  // board. Deliberate -- they are a marker, not scenery.
+}
+
 function frame(box, immediate, t) {
   if (t === undefined) t = zoomFraction();
   const sphere = box.getBoundingSphere(new THREE.Sphere());
@@ -456,7 +478,10 @@ function clearHighlight() {
 }
 
 /* Called from render.js drawHighlights(), so every selection path reaches it for free. */
-function highlight3D(refs) {
+/* `noFrame` re-applies the highlight without touching the camera. Toggling the dim setting has to
+ * rebuild the highlight materials -- the emissive level is baked in at highlight time -- but must
+ * not move the view, which at a non-zero zoom setting would creep in on every toggle. */
+function highlight3D(refs, noFrame) {
   if (!ready) return;
   lastRefs = refs;
   clearHighlight();
@@ -477,22 +502,26 @@ function highlight3D(refs) {
         if (!o.isMesh) return;
         savedState.set(o, { material: o.material, visible: o.visible });
         const m = o.material.clone();
+        const dim = dimActive();
         m.emissive = new THREE.Color(HIGHLIGHT);
-        m.emissiveIntensity = HIGHLIGHT_INTENSITY;
+        m.emissiveIntensity = dim ? HIGHLIGHT_EMISSIVE_DIM : HIGHLIGHT_INTENSITY;
         if (ghost) {
           m.transparent = true;
           m.opacity = GHOST_OPACITY;
           m.depthWrite = false;
-          m.emissiveIntensity = GHOST_EMISSIVE;
+          m.emissiveIntensity = dim ? HIGHLIGHT_EMISSIVE_DIM : GHOST_EMISSIVE;
         }
         o.material = m;
       });
       box.expandByObject(node);
     }
   }
-  if (hit && !box.isEmpty()) frame(box);
-  else if (!refs.length) frame(boardFrame().box);
+  if (!noFrame) {
+    if (hit && !box.isEmpty()) frame(box);
+    else if (!refs.length) frame(boardFrame().box);
+  }
   updatePin1(refs);
+  applyDim();
   render();
   const note = document.getElementById("board3d-missing");
   if (note) {
@@ -528,9 +557,9 @@ function init3D(glbDataUri) {
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = ENV_INTENSITY;
   pmrem.dispose();                       // one-time GPU pass; nothing to keep afterwards
-  const key = new THREE.DirectionalLight(0xffffff, KEY_INTENSITY);
-  key.position.set(1, 2, 1.5);
-  scene.add(key);
+  keyLight = new THREE.DirectionalLight(0xffffff, KEY_INTENSITY);
+  keyLight.position.set(1, 2, 1.5);
+  scene.add(keyLight);
 
   controls = new OrbitControls(camera, renderer.domElement);
   // No damping: the board stops the instant you let go. Damping is also the only thing that
@@ -592,6 +621,7 @@ window.init3D = init3D;
 window.highlight3D = highlight3D;
 window.resize3D = resize3D;
 window.setPlacedOnly = setPlacedOnly;
+window.applyDim3d = () => { highlight3D(lastRefs, true); };
 window.updatePin1 = () => { updatePin1(lastRefs); render(); };
 window.has3D = true;
 window.addEventListener('resize', () => { if (pendingResize) resize3D(); });

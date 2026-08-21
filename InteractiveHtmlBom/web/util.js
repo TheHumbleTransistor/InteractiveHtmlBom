@@ -502,6 +502,7 @@ var settings = {
   redrawOnDrag: true,
   boardRotation: 0,
   zoom3d: 0,
+  dim3d: false,
   offsetBackRotation: false,
   renderPads: true,
   renderReferences: true,
@@ -585,6 +586,7 @@ function initDefaults() {
   initBooleanSetting("redrawOnDrag", config.redraw_on_drag, "dragCheckbox", setRedrawOnDrag);
   initBooleanSetting("highlightRowOnClick", false, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
   initBooleanSetting("placed3donly", false, "placed3dOnlyCheckbox", setPlaced3dOnly);
+  initBooleanSetting("dim3d", false, "dim3dCheckbox", setDim3d);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
   var fields = ["checkboxes", "References"].concat(config.fields).concat(["Quantity"]);

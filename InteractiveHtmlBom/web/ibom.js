@@ -145,6 +145,14 @@ function setZoom3d(value) {
   document.getElementById("zoom3dLevel").textContent = settings.zoom3d;
 }
 
+function setDim3d(value) {
+  settings.dim3d = value;
+  writeStorage("dim3d", value);
+  // Re-apply immediately so toggling is visible with a row already selected. Safe to do here,
+  // unlike the zoom slider: this rebuilds the highlight without moving the camera.
+  if (window.applyDim3d) window.applyDim3d();
+}
+
 function setPlaced3dOnly(value) {
   writeStorage("placed3donly", value);
   settings.placed3donly = value;
@@ -1357,6 +1365,7 @@ window.onload = function (e) {
     document.getElementById("view3d-btn").style.display = "none";
     document.getElementById("placed3dOnlyContainer").style.display = "none";
     document.getElementById("zoom3dContainer").style.display = "none";
+    document.getElementById("dim3dContainer").style.display = "none";
     document.getElementById("bl-btn").classList.add("right-most-button");
     document.getElementById("bl-btn").classList.remove("middle-button");
     if (settings.canvaslayout == '3D') settings.canvaslayout = 'FB';
