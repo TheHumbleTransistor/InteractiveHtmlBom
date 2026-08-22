@@ -164,24 +164,21 @@
             <input id="offsetBackRotationCheckbox" type="checkbox" onchange="setOffsetBackRotation(this.checked)">
             Offset back rotation
           </label>
-          <div class="menu-label menu-label-top" id="view3dHeading">
-            <div style="margin-left: 5px;">3D view</div>
-          </div>
           <label class="menu-label" id="zoom3dContainer">
-            <span>Zoom on select</span>
+            <span>3D: Zoom on select</span>
             <span style="float: right"><span id="zoom3dLevel">0</span>%</span>
             <input id="zoom3dSlider" type="range" min="0" max="100" value="0" class="slider"
                    oninput="setZoom3d(this.value)">
           </label>
           <label class="menu-label" id="dim3dContainer">
-            <span>Board mask</span>
+            <span>3D: Board mask</span>
             <span style="float: right"><span id="dim3dLevel">75</span>%</span>
             <input id="dim3dSlider" type="range" min="0" max="100" value="75" class="slider"
                    oninput="setDim3d(this.value)">
           </label>
           <label class="menu-label" id="placed3dOnlyContainer">
             <input id="placed3dOnlyCheckbox" type="checkbox" onchange="setPlaced3dOnly(this.checked)">
-            Only show placed parts
+            3D: Only show placed parts
           </label>
           <label class="menu-label">
             <div style="margin-left: 5px">Bom checkboxes</div>

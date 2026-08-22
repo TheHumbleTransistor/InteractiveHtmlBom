@@ -91,10 +91,14 @@ fit fails the dots are disabled with a console warning rather than drawn in the 
 
 ### The settings menu
 
-All three 3D controls sit together under a **3D view** heading at the end of the view-settings
-block, using the repo's existing heading idiom (`menu-label menu-label-top` wrapping an inner div,
-as "Save board image" does). The heading carries its own id so it hides along with the controls
-when no GLB is embedded — a lone heading over nothing would be worse than not grouping them.
+All three 3D controls sit together at the end of the view-settings block, between *Offset back
+rotation* and *Bom checkboxes*, and each label is prefixed `3D:`.
+
+A **3D view** heading row was tried first and removed: every row in this menu is a bordered box of
+the same weight, so a heading reads as just another setting rather than a section title. The prefix
+does the grouping work on its own. For the same reason the first 3D row does not get
+`menu-label-top` — only the very first row of the whole menu carries a top border, and adding a
+divider here would be another visual device of the kind that did not work.
 
 The **Footprint column is hidden by default** (`hiddenColumns` in `initDefaults()`). Default only:
 a stored preference wins, the existing `.filter(e => fields.includes(e))` drops it harmlessly on a
