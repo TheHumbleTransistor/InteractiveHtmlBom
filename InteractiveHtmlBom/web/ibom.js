@@ -290,6 +290,12 @@ function createRowHighlightHandler(rowid, refs, net) {
   return function () {
     if (currentHighlightedRowId) {
       if (currentHighlightedRowId == rowid) {
+        // Clicking the selected row again deselects. Click mode only -- in hover mode this
+        // handler fires on every mousemove within the row, and toggling there would strobe.
+        if (settings.highlightRowOnClick) {
+          clearHighlightedFootprints();
+          drawHighlights();
+        }
         return;
       }
       document.getElementById(currentHighlightedRowId).classList.remove("highlighted");
@@ -1246,6 +1252,19 @@ function constrain(number, min, max) {
 
 document.onkeydown = function (e) {
   switch (e.key) {
+    case "Escape":
+      // Upstream has no way to clear a selection at all: clearHighlightedFootprints() is only
+      // reachable by switching BOM mode. That is tolerable for a red tint on the 2D canvas and
+      // not for the 3D view, where a selection also dims the board and holds the camera.
+      if (document.activeElement.type == "text") {
+        return;
+      }
+      if (currentHighlightedRowId !== null) {
+        clearHighlightedFootprints();
+        drawHighlights();
+        e.preventDefault();
+      }
+      break;
     case "n":
       if (document.activeElement.type == "text") {
         return;

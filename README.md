@@ -113,7 +113,22 @@ Two things worth knowing if you touch it:
 - `frame()` reads `settings.zoom3d` on every call rather than caching it. `initDefaults()` restores
   it at `window.onload` while the GLB loads asynchronously, so a mirrored copy is a race.
 
-### Dim on select
+### Deselecting
+
+Upstream iBOM has no way to clear a selection: `clearHighlightedFootprints()` is only reachable by
+switching BOM mode, and `createRowHighlightHandler()` returns early on the already-selected row.
+Tolerable for a red tint on the 2D canvas; not for the 3D view, where a selection also dims the
+board and holds the camera. This fork adds two ways out:
+
+- **Escape** — works in either mode, hooked into the existing `document.onkeydown` switch.
+- **Clicking the selected row again** — click mode only. In hover mode (the default, when
+  *Highlight row on click* is off) that same handler is bound to `onmousemove` and fires on every
+  movement within the row, so toggling there would strobe.
+
+Worth knowing: with the default hover mode the selection follows the mouse across the table and
+never clears on its own. Turning on *Highlight row on click* makes selection deliberate.
+
+### 3D: Board mask
 
 A 0–100 % slider in the settings menu, 0 by default. While a row is selected it darkens the board
 and every unselected component, leaving the red highlighted parts bright — useful on a dense board,
