@@ -204,6 +204,47 @@ function isArtwork(mesh) {
  * planes are the substrate and the mask, lowest and highest of them respectively, and copper is
  * the busiest plane between the two.
  */
+/* Pick out the substrate / mask / copper planes on ONE side of the board.
+ *
+ * The full-board planes are the substrate face and the mask; copper is the busiest plane between
+ * them. The only thing that differs per side is which of the two full-board planes is the mask:
+ * it is the OUTERMOST one, so the highest at the front and the lowest at the back.
+ */
+function identifySide(flats, maxArea, front) {
+  const fullBoard = [...new Set(flats.filter(f => f.area > maxArea * 0.9).map(f => f.k))]
+    .sort((x, y) => x - y);
+  if (fullBoard.length < 2) return null;
+  const mask = front ? fullBoard[fullBoard.length - 1] : fullBoard[0];
+  const substrate = front ? fullBoard[0] : fullBoard[fullBoard.length - 1];
+  const lo = Math.min(mask, substrate), hi = Math.max(mask, substrate);
+  const counts = new Map();
+  for (const f of flats) {
+    if (f.k <= lo || f.k >= hi) continue;
+    counts.set(f.k, (counts.get(f.k) || 0) + 1);
+  }
+  var copper = null;
+  for (const [k, n] of counts) {
+    if (copper === null || n > counts.get(copper)) copper = k;
+  }
+  return { substrate: substrate, mask: mask, copper: copper };
+}
+
+/* Tint the soldermask and copper so they are distinguishable, on BOTH faces.
+ *
+ * Identify them by AREA, not by mesh count or height rank. Measured on this board:
+ *
+ *     y (mm)   meshes   largest mesh        what it is
+ *      1.510        1   0.0119 m2 = board   top soldermask, ONE mesh with holes at the pads
+ *      1.500      582   small               top copper
+ *      1.460      500   0.0119 m2 = board   substrate, top face
+ *      0.000       84   0.0119 m2 = board   substrate, bottom face
+ *     -0.040      166   small               bottom copper
+ *     -0.050        1   0.0119 m2 = board   bottom soldermask
+ *
+ * Ranking planes from the top put the green on the silkscreen text, and a "more than 20 meshes"
+ * filter threw the soldermask away entirely -- it is a single mesh. The back was simply skipped
+ * for a while, which left the bottom mask and copper in KiCad's greys and reading as absent.
+ */
 function tintBoardLayers(root) {
   const mid = (boardTopY + boardBottomY) / 2;
   var maxArea = 0;
@@ -211,47 +252,43 @@ function tintBoardLayers(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;
     const y = meshPlaneY(o);
-    if (y === null || y < mid) return;
+    if (y === null) return;
     o.geometry.computeBoundingBox();
     const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
     const area = (bb.max.x - bb.min.x) * (bb.max.z - bb.min.z);
     if (area > maxArea) maxArea = area;
-    flats.push({ mesh: o, k: PLANE_KEY(y), area: area });
+    flats.push({ mesh: o, k: PLANE_KEY(y), y: y, area: area });
   });
   if (!flats.length) return null;
 
-  const fullBoard = [...new Set(flats.filter(f => f.area > maxArea * 0.9).map(f => f.k))]
-    .sort((x, y) => x - y);
-  if (fullBoard.length < 2) return null;
-  const substrate = fullBoard[0];
-  const mask = fullBoard[fullBoard.length - 1];
-
-  const counts = new Map();
-  for (const f of flats) {
-    if (f.k <= substrate || f.k >= mask) continue;
-    counts.set(f.k, (counts.get(f.k) || 0) + 1);
+  const sides = {
+    front: identifySide(flats.filter(f => f.y >= mid), maxArea, true),
+    back: identifySide(flats.filter(f => f.y < mid), maxArea, false),
+  };
+  const masks = new Set(), coppers = new Set();
+  for (const name in sides) {
+    const s = sides[name];
+    if (!s) continue;
+    masks.add(s.mask);
+    if (s.copper !== null) coppers.add(s.copper);
   }
-  var copper = null;
-  for (const [k, n] of counts) {
-    if (copper === null || n > counts.get(copper)) copper = k;
-  }
+  if (!masks.size) return null;
 
-  const tint = new Map([[mask, MASK_COLOR]]);
-  if (copper !== null) tint.set(copper, COPPER_COLOR);
   const cache = new Map();
   for (const f of flats) {
-    if (!tint.has(f.k)) continue;
-    const col = tint.get(f.k);
+    const isMask = masks.has(f.k), isCopper = coppers.has(f.k);
+    if (!isMask && !isCopper) continue;
+    const col = isMask ? MASK_COLOR : COPPER_COLOR;
     const key = f.mesh.material.uuid + ':' + col;
     var mat = cache.get(key);
     if (!mat) {
       mat = f.mesh.material.clone();
       if (col !== null) mat.color = new THREE.Color(col);
-      if (f.k === copper && mat.metalness !== undefined) {
+      if (isCopper && mat.metalness !== undefined) {
         mat.metalness = COPPER_METALNESS;
         mat.roughness = COPPER_ROUGHNESS;
       }
-      if (f.k === mask) {
+      if (isMask) {
         // depthWrite stays ON: the mask must still occlude anything genuinely behind it, and
         // three.js draws transparent materials after the opaque pass, so copper and substrate
         // are already in the buffer to blend against.
@@ -262,7 +299,10 @@ function tintBoardLayers(root) {
     }
     f.mesh.material = mat;
   }
-  return { mask: mask / 1000, copper: copper === null ? NaN : copper / 1000 };
+  const mm = (k) => (k === null || k === undefined) ? 'none' : (k / 1000).toFixed(3);
+  return sides.front || sides.back
+    ? { front: sides.front, back: sides.back, mm: mm }
+    : null;
 }
 
 /* A gentle depth bias for board artwork.
@@ -594,8 +634,12 @@ function init3D(glbDataUri) {
     console.log('ibom3d: board ' + (boardBottomY * 1000).toFixed(3) + ' .. '
       + (boardTopY * 1000).toFixed(3) + ' mm, ' + biased + ' artwork faces, '
       + footprintMeshes.size + ' component meshes'
-      + (tinted ? ', tinted mask@' + tinted.mask.toFixed(3)
-                + ' copper@' + tinted.copper.toFixed(3) : ', not tinted'));
+      + (tinted
+          ? ', tinted front mask@' + tinted.mm(tinted.front && tinted.front.mask)
+            + ' copper@' + tinted.mm(tinted.front && tinted.front.copper)
+            + ', back mask@' + tinted.mm(tinted.back && tinted.back.mask)
+            + ' copper@' + tinted.mm(tinted.back && tinted.back.copper)
+          : ', not tinted'));
 
     xform = solveTransform();
     if (xform) {
