@@ -186,9 +186,12 @@ is simply `node.visible = false` and the land pattern stays put. Counted on this
 |---|---|---|---|
 | 1.545 | **371** | 0 | component bottom faces |
 | 1.535 | 0 | 1153 | silkscreen |
-| 1.510 | 0 | 1 | soldermask, one full-board mesh |
-| 1.500 | 0 | 582 | copper pads |
-| 1.460 | 0 | 500 | substrate |
+| 1.510 | 0 | 1 | top soldermask, one full-board mesh |
+| 1.500 | 0 | 582 | top copper |
+| 1.460 | 0 | 500 | substrate, top face |
+| 0.000 | 0 | 84 | substrate, bottom face |
+| −0.040 | 0 | 166 | bottom copper |
+| −0.050 | 0 | 1 | bottom soldermask, one full-board mesh |
 
 Earlier versions tried to split each footprint into "artwork" and "body" by height, on the belief
 that pads were inside it. They are not, and every height rule tried caught component geometry
@@ -242,11 +245,25 @@ the copper-toned pixels of an isolated render:
 
 At `metalness 0 / roughness 0.7` the colour is within ~2 % across viewing angles.
 
-Identify the layers by **area**, not mesh count or height rank: the front full-board planes are
-the substrate and the mask -- lowest and highest of them -- and copper is the busiest plane
-between the two. Ranking from the top puts the tint on the silkscreen, and a "more than 20
-meshes" filter discards the soldermask outright, it being a single mesh. For the same reason
-`findBoardFaces()` cannot look for a substrate *solid*: the board is flat faces too.
+Identify the layers by **area**, not mesh count or height rank: the full-board planes on a side are
+the substrate face and the mask, and copper is the busiest plane between them. Ranking from the top
+puts the tint on the silkscreen, and a "more than 20 meshes" filter discards the soldermask
+outright, it being a single mesh. For the same reason `findBoardFaces()` cannot look for a
+substrate *solid*: the board is flat faces too.
+
+**Both faces are tinted**, by `identifySide()` run once per side. The rule generalises with one
+substitution: the mask is the **outermost** full-board plane on its side — highest at the front,
+lowest at the back — with the substrate the inner one. The back was skipped for a while
+(`tintBoardLayers()` opened with `if (y < mid) return`), which left the bottom mask and copper in
+KiCad's greys and reading as absent:
+
+| plane | before | after |
+|---|---|---|
+| −0.050 bottom mask | `#373737` grey | `#185230` green, α 0.80 |
+| −0.040 bottom copper | `#bababa` grey, **metalness 1** | `#c3903e` gold, metalness 0 |
+
+Note the bottom copper arrived at `metalness 1`, so it had the black-at-grazing-angles problem too;
+routing it through the same tint pass fixes that as well.
 
 It rides iBOM's own `CHECKBOX_CHANGE_EVENT`, so no checkbox bookkeeping is patched. It follows
 whichever column `--mark-when-checked` names, defaulting to `Placed`.
