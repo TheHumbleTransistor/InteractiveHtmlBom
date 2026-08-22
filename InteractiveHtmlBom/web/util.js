@@ -591,7 +591,9 @@ function initDefaults() {
   var fields = ["checkboxes", "References"].concat(config.fields).concat(["Quantity"]);
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
-    hcols = [];
+    // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
+    // BOM that has no Footprint column. The column stays available in the column menu.
+    hcols = ["Footprint"];
   }
   settings.hiddenColumns = hcols.filter(e => fields.includes(e));
 

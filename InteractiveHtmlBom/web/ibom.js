@@ -1386,6 +1386,7 @@ window.onload = function (e) {
     document.getElementById("placed3dOnlyContainer").style.display = "none";
     document.getElementById("zoom3dContainer").style.display = "none";
     document.getElementById("dim3dContainer").style.display = "none";
+    document.getElementById("view3dHeading").style.display = "none";
     document.getElementById("bl-btn").classList.add("right-most-button");
     document.getElementById("bl-btn").classList.remove("middle-button");
     if (settings.canvaslayout == '3D') settings.canvaslayout = 'FB';

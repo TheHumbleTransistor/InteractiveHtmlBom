@@ -89,6 +89,17 @@ footprints. Judge such a fit on the MEDIAN residual, never the worst -- a footpr
 model carries its own `(offset ...)` is a legitimate outlier, and there were 8 of them. If the
 fit fails the dots are disabled with a console warning rather than drawn in the wrong place.
 
+### The settings menu
+
+All three 3D controls sit together under a **3D view** heading at the end of the view-settings
+block, using the repo's existing heading idiom (`menu-label menu-label-top` wrapping an inner div,
+as "Save board image" does). The heading carries its own id so it hides along with the controls
+when no GLB is embedded — a lone heading over nothing would be worse than not grouping them.
+
+The **Footprint column is hidden by default** (`hiddenColumns` in `initDefaults()`). Default only:
+a stored preference wins, the existing `.filter(e => fields.includes(e))` drops it harmlessly on a
+BOM with no such column, and the column stays available to re-enable in the column menu.
+
 ### Zoom on select
 
 A **3D zoom on select** slider in the settings menu, styled like Board rotation. It controls how
