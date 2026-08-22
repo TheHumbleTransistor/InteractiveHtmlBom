@@ -164,8 +164,14 @@ A **3D: only show placed parts** checkbox in the settings menu. With it on, the 
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
 
-**Land patterns stay visible, and selecting an unplaced row ghosts the part in** at
-`GHOST_OPACITY` / `GHOST_EMISSIVE`, so you can see the shape of the thing you are about to fit.
+**Land patterns stay visible, and selecting an unplaced row reveals that part** — fully opaque,
+exactly as a placed part looks — so you can see the shape of the thing you are about to fit.
+
+It was briefly revealed as a *translucent* ghost instead, which rendered as a see-through tangle of
+red edges. The culprit was the `depthWrite = false` that the transparency required: it also stops
+the part's own faces occluding **each other**, so every back face and interior surface showed
+through the front. No opacity value fixes that — the geometry is self-overlapping and unsorted.
+Opaque is both correct and less code.
 
 Nothing is overlaid on the components themselves -- no tint, no shading, no transparency -- so a
 populated board renders as it really looks and the red highlight is the only thing distinguishing

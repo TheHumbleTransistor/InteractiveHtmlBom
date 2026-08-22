@@ -19,8 +19,6 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-const GHOST_OPACITY = 0.6;
-const GHOST_EMISSIVE = 0.45;
 // Follow the 2D view's own CSS variable rather than hardcoding, so the dot matches the canvas
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
@@ -494,13 +492,19 @@ function highlight3D(refs, noFrame) {
     const nodes = nodesFor(ref);
     if (!nodes.length) continue;       // no 3D model for this part -- legitimate, skip it
     hit++;
-    // If the placed filter is hiding this part, show it as a translucent ghost for as long as
-    // it stays selected: an assembler needs to see the shape of the thing they are about to
-    // fit, and where it goes, before they can tick it off.
-    const ghost = placedOnly && !isPlaced(ref);
+    // With the placed filter on, an unplaced part is hidden. Selecting it reveals it -- fully
+    // opaque, exactly as a placed part would look: an assembler needs to see the shape of the
+    // thing they are about to fit before they can tick it off.
+    //
+    // It used to be revealed as a translucent ghost, which rendered as a see-through tangle of
+    // red edges. The culprit was depthWrite = false, needed for the transparency but which also
+    // stops the part's own faces occluding EACH OTHER, so every back face and interior surface
+    // showed through the front. No opacity value fixes that; the geometry is self-overlapping and
+    // unsorted. Opaque is both correct and simpler.
+    const reveal = placedOnly && !isPlaced(ref);
     for (const node of nodes) {
       savedState.set(node, { material: null, visible: node.visible });
-      if (ghost) node.visible = true;
+      if (reveal) node.visible = true;
       node.traverse((o) => {
         if (!o.isMesh) return;
         savedState.set(o, { material: o.material, visible: o.visible });
@@ -510,12 +514,6 @@ function highlight3D(refs, noFrame) {
         const d = dimFraction();
         m.emissive = new THREE.Color(HIGHLIGHT);
         m.emissiveIntensity = THREE.MathUtils.lerp(HIGHLIGHT_INTENSITY, HIGHLIGHT_EMISSIVE_DIM, d);
-        if (ghost) {
-          m.transparent = true;
-          m.opacity = GHOST_OPACITY;
-          m.depthWrite = false;
-          m.emissiveIntensity = THREE.MathUtils.lerp(GHOST_EMISSIVE, HIGHLIGHT_EMISSIVE_DIM, d);
-        }
         o.material = m;
       });
       box.expandByObject(node);
