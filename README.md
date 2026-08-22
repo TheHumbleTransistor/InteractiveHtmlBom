@@ -89,6 +89,18 @@ footprints. Judge such a fit on the MEDIAN residual, never the worst -- a footpr
 model carries its own `(offset ...)` is a legitimate outlier, and there were 8 of them. If the
 fit fails the dots are disabled with a console warning rather than drawn in the wrong place.
 
+### Silkscreen
+
+The existing **Silkscreen** checkbox governs the 3D view as well as the 2D canvas — no new control;
+`silkscreenVisible()` calls into the 3D module the same way `setHighlightPin1()` does.
+
+Silkscreen is identified as the **board-level flat face beyond the mask** on either side, collected
+during the pass `tintBoardLayers()` already makes. The board-level part is load-bearing, not
+cosmetic: "beyond the front mask" alone means `y > 1.510 mm`, which is *every component on the
+board*. Excluding `footprintMeshes` is what makes this the silkscreen rather than the whole
+assembly, and the test asserts exactly that — 1154 faces toggle while the component count holds at
+7608 in every state.
+
 ### The settings menu
 
 All three 3D controls sit together at the end of the view-settings block, between *Offset back

@@ -126,6 +126,7 @@ function fabricationVisible(value) {
 function silkscreenVisible(value) {
   writeStorage("silkscreenVisible", value);
   settings.renderSilkscreen = value;
+  if (window.setSilkscreen3d) window.setSilkscreen3d();
   redrawIfInitDone();
 }
 

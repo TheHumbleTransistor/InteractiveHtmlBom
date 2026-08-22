@@ -175,6 +175,7 @@ function findBoardFaces(root) {
  * it.
  */
 var footprintMeshes = new Set();
+var silkMeshes = [];       // board-level flat faces beyond the mask, i.e. silkscreen
 
 function indexFootprintMeshes() {
   footprintMeshes.clear();
@@ -274,6 +275,19 @@ function tintBoardLayers(root) {
   }
   if (!masks.size) return null;
 
+  /* Silkscreen is the BOARD-LEVEL flat face beyond the mask on either side.
+   *
+   * The board-level test is load-bearing, not cosmetic: "beyond the front mask" on its own means
+   * y > 1.510 mm, which is every component on the board. Excluding footprintMeshes is what makes
+   * this the silkscreen rather than the whole assembly. */
+  silkMeshes = [];
+  for (const f of flats) {
+    if (footprintMeshes.has(f.mesh)) continue;
+    const beyondFront = sides.front && f.k > sides.front.mask;
+    const beyondBack = sides.back && f.k < sides.back.mask;
+    if (beyondFront || beyondBack) silkMeshes.push(f.mesh);
+  }
+
   const cache = new Map();
   for (const f of flats) {
     const isMask = masks.has(f.k), isCopper = coppers.has(f.k);
@@ -331,6 +345,16 @@ function biasArtwork(root) {
     o.material = mat;
   });
   return n;
+}
+
+/* The existing Silkscreen checkbox governs the 3D view as well as the 2D canvas.
+ *
+ * `settings` is read on every call rather than cached: initDefaults() restores the setting at
+ * window.onload while the GLB loads asynchronously, so a cached copy is a race -- the same reason
+ * zoomFraction() and dimFraction() read it lazily. */
+function applySilkscreen() {
+  const show = (typeof settings === "undefined") || settings.renderSilkscreen !== false;
+  for (const m of silkMeshes) m.visible = show;
 }
 
 function boardFrame() {
@@ -633,7 +657,7 @@ function init3D(glbDataUri) {
     const biased = biasArtwork(root);
     console.log('ibom3d: board ' + (boardBottomY * 1000).toFixed(3) + ' .. '
       + (boardTopY * 1000).toFixed(3) + ' mm, ' + biased + ' artwork faces, '
-      + footprintMeshes.size + ' component meshes'
+      + footprintMeshes.size + ' component meshes, ' + silkMeshes.length + ' silkscreen faces'
       + (tinted
           ? ', tinted front mask@' + tinted.mm(tinted.front && tinted.front.mask)
             + ' copper@' + tinted.mm(tinted.front && tinted.front.copper)
@@ -656,6 +680,7 @@ function init3D(glbDataUri) {
     camera.position.set(f.center.x, f.center.y + f.size.length() * 0.5,
                         f.center.z + f.size.length() * 0.5);
     controls.target.copy(f.center);
+    applySilkscreen();      // the checkbox was very likely restored before this module existed
     ready = true;
     window.__ibom3dReady = true;
     resize3D();
@@ -678,6 +703,7 @@ window.init3D = init3D;
 window.highlight3D = highlight3D;
 window.resize3D = resize3D;
 window.setPlacedOnly = setPlacedOnly;
+window.setSilkscreen3d = () => { applySilkscreen(); render(); };
 window.applyDim3d = () => { highlight3D(lastRefs, true); };
 window.updatePin1 = () => { updatePin1(lastRefs); render(); };
 window.has3D = true;
