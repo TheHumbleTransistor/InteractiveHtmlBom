@@ -502,7 +502,7 @@ var settings = {
   redrawOnDrag: true,
   boardRotation: 0,
   zoom3d: 0,
-  dim3d: 0,
+  dim3d: 75,
   offsetBackRotation: false,
   renderPads: true,
   renderReferences: true,
@@ -627,8 +627,10 @@ function initDefaults() {
   var storedDim = readStorage("dim3d");
   if (storedDim === "true") {
     settings.dim3d = 100;
-  } else if (storedDim === null || storedDim === "false" || isNaN(parseInt(storedDim))) {
-    settings.dim3d = 0;
+  } else if (storedDim === "false") {
+    settings.dim3d = 0;                 // explicitly turned off back when it was a checkbox
+  } else if (storedDim === null || isNaN(parseInt(storedDim))) {
+    settings.dim3d = 75;                // no stored preference -> the default
   } else {
     settings.dim3d = parseInt(storedDim);
   }

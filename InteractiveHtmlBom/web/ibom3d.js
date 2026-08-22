@@ -573,6 +573,16 @@ function init3D(glbDataUri) {
   controls.enableDamping = false;
   controls.addEventListener('change', render);
 
+  // Double-click anywhere in the 3D view clears the selection. No raycast: any double-click
+  // means "get me out of this", whether it lands on a part or on bare board. OrbitControls binds
+  // no dblclick of its own, and a double-click involves no drag, so nothing conflicts.
+  renderer.domElement.addEventListener('dblclick', () => {
+    if (typeof clearHighlightedFootprints === "function" && lastRefs.length) {
+      clearHighlightedFootprints();
+      drawHighlights();
+    }
+  });
+
   new GLTFLoader().load(glbDataUri, (gltf) => {
     root = gltf.scene;
     scene.add(root);

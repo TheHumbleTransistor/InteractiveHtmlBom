@@ -121,6 +121,9 @@ Tolerable for a red tint on the 2D canvas; not for the 3D view, where a selectio
 board and holds the camera. This fork adds two ways out:
 
 - **Escape** — works in either mode, hooked into the existing `document.onkeydown` switch.
+- **Double-clicking the 3D view** — no raycast; any double-click means "get me out of this",
+  whether it lands on a part or on bare board. OrbitControls binds no `dblclick` of its own and a
+  double-click involves no drag, so the camera is untouched.
 - **Clicking the selected row again** — click mode only. In hover mode (the default, when
   *Highlight row on click* is off) that same handler is bound to `onmousemove` and fires on every
   movement within the row, so toggling there would strobe.
@@ -130,7 +133,7 @@ never clears on its own. Turning on *Highlight row on click* makes selection del
 
 ### 3D: Board mask
 
-A 0–100 % slider in the settings menu, 0 by default. While a row is selected it darkens the board
+A 0–100 % slider in the settings menu, **75 % by default**. While a row is selected it darkens the board
 and every unselected component, leaving the red highlighted parts bright — useful on a dense board,
 and especially at 0 % auto-zoom where the camera no longer flies to the selection.
 
