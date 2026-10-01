@@ -228,6 +228,14 @@ function createCheckboxHandlers(input, checkbox, references, row) {
       checkbox: checkbox,
       refs: references,
     }
+    if (input.checked && checkbox == (settings.markWhenChecked || "Placed")) {
+      var dnpRefs = references.filter(r => dnpFootprints.has(r[1])).map(r => r[0]);
+      if (dnpRefs.length && !confirm(dnpRefs.join(", ") + (dnpRefs.length > 1 ? " are" : " is") +
+          " marked DO NOT POPULATE.\n\nMark as " + checkbox + " anyway?")) {
+        input.checked = false;
+        return;
+      }
+    }
     if (input.checked) {
       // checkbox ticked
       for (var ref of references) {
@@ -558,7 +566,7 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
 
     label.appendChild(input);
     if (column.length > 0)
-      label.append(column[0].toUpperCase() + column.slice(1));
+      label.append(fieldLabel(column)[0].toUpperCase() + fieldLabel(column).slice(1));
 
     viscontent.appendChild(label);
   });
@@ -665,8 +673,9 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
         var i = config.fields.indexOf(column);
         if (i < 0)
           return;
-        tr.appendChild(createColumnHeader(
-          column, `field${i + 1}`, stringFieldCompareClosure(i)));
+        var th = createColumnHeader(column, `field${i + 1}`, stringFieldCompareClosure(i));
+        th.firstChild.nodeValue = fieldLabel(column);
+        tr.appendChild(th);
       }
     });
   }
@@ -762,7 +771,7 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
             ? '<span class="dnp-ref">' + highlightFilter(r[0]) + '</span>'
             : highlightFilter(r[0])).join(", ");
           if (references.some(r => dnpFootprints.has(r[1]))) {
-            refsHtml = '<span class="dnp-badge">DNP</span> ' + refsHtml;
+            refsHtml = '<span class="dnp-badge">DNP</span>' + refsHtml;
           }
           td.innerHTML = refsHtml;
           tr.appendChild(td);

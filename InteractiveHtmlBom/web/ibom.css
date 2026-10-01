@@ -223,10 +223,12 @@ canvas:active {
 
 .bom tr.dnp:nth-child(n) {
   background-color: #fdd;
+  color: #999;
 }
 
 .dark .bom tr.dnp:nth-child(n) {
   background-color: #5c2a2a;
+  color: #a08c8c;
 }
 
 .bom tr.dnp td:first-child {
@@ -239,6 +241,7 @@ canvas:active {
   font-weight: bold;
   padding: 0 4px;
   border-radius: 3px;
+  margin-right: 4px;
 }
 
 .dnp-ref {
