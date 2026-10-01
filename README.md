@@ -161,7 +161,7 @@ never clears on its own. Turning on *Highlight row on click* makes selection del
 ### 3D: Board mask
 
 A 0–100 % slider in the settings menu, **75 % by default**. While a row is selected it darkens the board
-and every unselected component, leaving the magenta highlighted parts bright — useful on a dense board,
+and every unselected component, leaving the green highlighted parts bright — useful on a dense board,
 and especially at 0 % auto-zoom where the camera no longer flies to the selection.
 
 **Implemented by turning the lights down, not by recolouring materials.** The highlight is emissive,
@@ -205,7 +205,7 @@ through the front. No opacity value fixes that — the geometry is self-overlapp
 Opaque is both correct and less code.
 
 Nothing is overlaid on the components themselves -- no tint, no shading, no transparency -- so a
-populated board renders as it really looks and the magenta highlight is the only thing distinguishing
+populated board renders as it really looks and the green highlight is the only thing distinguishing
 a selection. Verified by material inspection: of 7608 component meshes, 0 are transparent, 0
 share a tinted material and 0 carry a polygon offset. Both matter for the actual workflow: you need to see where a part goes,
 and what it looks like, *before* you can fit it and tick it off.
