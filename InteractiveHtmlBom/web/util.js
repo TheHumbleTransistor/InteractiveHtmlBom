@@ -688,10 +688,10 @@ const EventHandler = {
 EventHandler.init();
 
 const MOUNT_COLUMN = "Mounting Type";
-const MOUNT_HEADER_TOOLTIP = "SMT = surface-mount, TH = through-hole";
+const MOUNT_HEADER_TOOLTIP = "SMT = Surface Mount, TH = Through Hole";
 const MOUNT_LABELS = {
-  smd: ["SMT", "Surface-mount: placed in the SMT pass"],
-  th: ["TH", "Through-hole: placed in the through-hole pass, after SMT"],
+  smd: ["SMT", "Surface Mount"],
+  th: ["TH", "Through Hole"],
 };
 const MOUNT_ICONS = {
   smd: '<svg class="mount-icon" viewBox="0 0 10 10"><rect x="0.5" y="1.75" width="9" height="6.5" rx="1"/></svg>',
