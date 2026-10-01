@@ -552,7 +552,7 @@ function pin1Material(color) {
 function pin1Scale() {
   const v = (typeof settings !== "undefined" && settings.pin1Size3d !== undefined)
     ? settings.pin1Size3d : 100;
-  return Math.min(Math.max(v, 25), 300) / 100;
+  return Math.min(Math.max(v, 25), 200) / 100;
 }
 
 /* How far the part's 3D model rises off the board face it is mounted on, in model units. */
