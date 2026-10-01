@@ -238,8 +238,8 @@ DNP parts are marked so an assembler can't miss them, with no setting to turn th
 - **BOM:** DNP refs are red and struck through, the row gets a red **DNP** badge, and a row that
   is entirely DNP is tinted red with lightened text and a red stripe that stays when the row is
   selected.
-- **2D and 3D:** a red cross over each DNP footprint. In 3D the part is hidden and the cross sits
-  on the bare land pattern.
+- **2D and 3D:** a red cross over each DNP footprint. In 3D the cross sits on the bare land pattern;
+  the part only appears, tinted red, once it is ticked Placed.
 - **Checkbox progress** (e.g. *Placed 0/140*) leaves DNP parts out of the total.
 - **Grouping** always puts DNP parts in their own row, whatever `--group-fields` says.
 - **Ticking Placed** (or whichever column `--mark-when-checked` names) on a DNP row asks for
