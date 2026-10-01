@@ -564,6 +564,23 @@ function partHeight(fp) {
   return Math.max(fp.layer === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
 }
 
+/* Where the marker's tip lands, in board mm: 25 % of the pad's length in from its outer end. "Outer"
+ * is along whichever pad axis best matches the direction from the centroid of the footprint's pads
+ * to this pad, so a corner pin is still marked at its toe rather than pushed sideways. */
+function pin1Tip(fp, pad) {
+  const n = fp.pads.length;
+  const cx = fp.pads.reduce((a, p) => a + p.pos[0], 0) / n;
+  const cy = fp.pads.reduce((a, p) => a + p.pos[1], 0) / n;
+  const dx = pad.pos[0] - cx, dy = pad.pos[1] - cy;
+  if (Math.hypot(dx, dy) < 1e-6) return pad.pos;
+  // The 2D renderer draws a pad rotated by -angle; rotate by +angle to work pad-local.
+  const a = THREE.MathUtils.degToRad(pad.angle || 0), c = Math.cos(a), s = Math.sin(a);
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  const ox = Math.abs(lx) >= Math.abs(ly) ? Math.sign(lx) * 0.25 * pad.size[0] : 0;
+  const oy = Math.abs(lx) >= Math.abs(ly) ? 0 : Math.sign(ly) * 0.25 * pad.size[1];
+  return [pad.pos[0] + ox * c + oy * s, pad.pos[1] - ox * s + oy * c];
+}
+
 function buildPin1Marker(fp, pad, mat) {
   const back = fp.layer === 'B';
   const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))
@@ -576,7 +593,7 @@ function buildPin1Marker(fp, pad, mat) {
     new THREE.Mesh(new THREE.ConeGeometry(ringR, ringH, 24).rotateX(Math.PI)
       .translate(0, ringH / 2, 0), mat),
     new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16).translate(0, d, 0), mat));
-  marker.position.copy(toModel(pad.pos, back ? boardBottomY : boardTopY));
+  marker.position.copy(toModel(pin1Tip(fp, pad), back ? boardBottomY : boardTopY));
   if (back) marker.rotation.x = Math.PI;              // stand off the bottom face
   return marker;
 }
