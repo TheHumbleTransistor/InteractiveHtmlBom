@@ -603,8 +603,8 @@ function initDefaults() {
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
     // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
-    // BOM that has no Footprint column. The column stays available in the column menu.
-    hcols = ["Footprint"];
+    // BOM that lacks one of these columns. They stay available in the column menu.
+    hcols = ["Footprint", "kicad_dnp"];
   }
   settings.hiddenColumns = hcols.filter(e => fields.includes(e));
 

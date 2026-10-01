@@ -245,7 +245,8 @@ DNP parts are marked so an assembler can't miss them:
 - **Grouping** always puts DNP parts in their own row, whatever `--group-fields` says.
 - **Ticking Placed** (or whichever column `--mark-when-checked` names) on a DNP row asks for
   confirmation first. The operator can still go ahead.
-- KiCad's DNP column is headed **Do Not Populate**, and so is its value.
+- KiCad's DNP column is headed **Do Not Populate**, and so is its value. It is hidden by default
+  (the column menu brings it back); hovering the **DNP** badge explains it instead.
 
 A part counts as DNP if `--dnp-field` marks it or KiCad's DNP flag (`kicad_dnp`) is set.
 

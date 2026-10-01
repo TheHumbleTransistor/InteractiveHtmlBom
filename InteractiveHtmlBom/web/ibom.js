@@ -778,7 +778,8 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
             ? '<span class="dnp-ref">' + highlightFilter(r[0]) + '</span>'
             : highlightFilter(r[0])).join(", ");
           if (references.some(r => dnpFootprints.has(r[1]))) {
-            refsHtml = '<span class="dnp-badge">DNP</span>' + refsHtml;
+            refsHtml = '<span class="dnp-badge" title="This line item is intended NOT to be populated.  ' +
+              'DNP = Do Not Populate">DNP</span>' + refsHtml;
           }
           td.innerHTML = refsHtml;
           tr.appendChild(td);
