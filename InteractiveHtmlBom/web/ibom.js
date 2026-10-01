@@ -790,7 +790,7 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
         } else if (column === "References") {
           td = document.createElement("TD");
           td.innerHTML = references.map(r => dnpFootprints.has(r[1])
-            ? '<span class="dnp-ref">' + highlightFilter(r[0]) + '</span>'
+            ? `<span class="dnp-ref" title="${DNP_TOOLTIP}">` + highlightFilter(r[0]) + '</span>'
             : highlightFilter(r[0])).join(", ");
           tr.appendChild(td);
         } else if (column === MOUNT_COLUMN) {
