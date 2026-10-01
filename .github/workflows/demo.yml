@@ -46,7 +46,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Post or update comment
+      - name: Post comment
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -54,16 +54,7 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
           URL: ${{ needs.build.outputs.artifact-url }}
         run: |
-          marker='<!-- ibom-demo -->'
-          body="$marker
-          **Demo iBOM** for ${SHA:0:7}: [ibom-demo.html]($URL) (kept 30 days)"
-          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
-            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
-          if [ -n "$id" ]; then
-            gh api -X PATCH "repos/$GH_REPO/issues/comments/$id" -f body="$body" >/dev/null
-          else
-            gh pr comment "$PR" --body "$body"
-          fi
+          gh pr comment "$PR" --body "**Demo iBOM** for ${SHA:0:7}: [ibom-demo.html]($URL) (kept 30 days)"
 
   release:
     name: Attach demo to release
