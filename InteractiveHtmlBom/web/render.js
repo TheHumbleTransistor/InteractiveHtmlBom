@@ -425,7 +425,7 @@ function drawFootprints(canvas, layer, scalefactor, highlight) {
     if( h || d || !highlight) {
       drawFootprint(ctx, layer, scalefactor, fp, colors, highlight, outline);
     }
-    if (dnp && !highlight && fp.layer == layer) {
+    if (dnp && settings.renderDnpMarkers && !highlight && fp.layer == layer) {
       drawDnpCross(ctx, scalefactor, fp, dnpColor);
     }
   }

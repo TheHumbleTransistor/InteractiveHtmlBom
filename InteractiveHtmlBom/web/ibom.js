@@ -62,6 +62,13 @@ function dnpOutline(value) {
   redrawIfInitDone();
 }
 
+function dnpMarkers(value) {
+  writeStorage("dnpMarkers", value);
+  settings.renderDnpMarkers = value;
+  redrawIfInitDone();
+  if (window.setDnpMarkers3d) window.setDnpMarkers3d();
+}
+
 function setDarkMode(value) {
   if (value) {
     topmostdiv.classList.add("dark");

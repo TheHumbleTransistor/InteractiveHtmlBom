@@ -457,6 +457,8 @@ function overwriteSettings(newSettings) {
   document.getElementById("zonesCheckbox").checked = settings.renderZones;
   dnpOutline(settings.renderDnpOutline);
   document.getElementById("dnpOutlineCheckbox").checked = settings.renderDnpOutline;
+  dnpMarkers(settings.renderDnpMarkers);
+  document.getElementById("dnpMarkersCheckbox").checked = settings.renderDnpMarkers;
   setRedrawOnDrag(settings.redrawOnDrag);
   document.getElementById("dragCheckbox").checked = settings.redrawOnDrag;
   setHighlightRowOnClick(settings.highlightRowOnClick);
@@ -517,6 +519,7 @@ var settings = {
   renderSilkscreen: true,
   renderFabrication: true,
   renderDnpOutline: false,
+  renderDnpMarkers: true,
   renderTracks: true,
   renderZones: true,
   columnOrder: [],
@@ -590,6 +593,7 @@ function initDefaults() {
     zonesVisible(false);
   }
   initBooleanSetting("dnpOutline", false, "dnpOutlineCheckbox", dnpOutline);
+  initBooleanSetting("dnpMarkers", true, "dnpMarkersCheckbox", dnpMarkers);
   initBooleanSetting("redrawOnDrag", config.redraw_on_drag, "dragCheckbox", setRedrawOnDrag);
   initBooleanSetting("highlightRowOnClick", false, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
   initBooleanSetting("placed3donly", true, "placed3dOnlyCheckbox", setPlaced3dOnly);
