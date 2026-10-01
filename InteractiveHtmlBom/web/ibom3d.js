@@ -24,8 +24,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
-const PIN1_RADIUS_PER_PAD = 0.5;   // sphere radius / the pad's longer side, at 100 %
-const PIN1_MIN_RADIUS_MM = 0.4;
+const PIN1_RADIUS_PER_PAD = 0.35;  // sphere radius / the pad's shorter side, at 100 %
+const PIN1_MIN_RADIUS_MM = 0.2;
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
@@ -566,7 +566,7 @@ function partHeight(fp) {
 
 function buildPin1Marker(fp, pad, mat) {
   const back = fp.layer === 'B';
-  const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.max(...pad.size))
+  const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))
     * pin1Scale() * 0.001;
   const d = Math.max(partHeight(fp), r) + r;          // pad to sphere centre
   const slant = Math.sqrt(d * d - r * r);
