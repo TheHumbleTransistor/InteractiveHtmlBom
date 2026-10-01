@@ -167,13 +167,6 @@ function setPin1Size3d(value) {
   if (window.updatePin1) window.updatePin1();
 }
 
-function setPin1Opacity3d(value) {
-  settings.pin1Opacity3d = parseInt(value);
-  writeStorage("pin1Opacity3d", settings.pin1Opacity3d);
-  document.getElementById("pin1Opacity3dLevel").textContent = settings.pin1Opacity3d;
-  if (window.updatePin1) window.updatePin1();
-}
-
 function setPlaced3dOnly(value) {
   writeStorage("placed3donly", value);
   settings.placed3donly = value;
@@ -1477,7 +1470,6 @@ window.onload = function (e) {
     document.getElementById("zoom3dContainer").style.display = "none";
     document.getElementById("dim3dContainer").style.display = "none";
     document.getElementById("pin1Size3dContainer").style.display = "none";
-    document.getElementById("pin1Opacity3dContainer").style.display = "none";
     document.getElementById("bl-btn").classList.add("right-most-button");
     document.getElementById("bl-btn").classList.remove("middle-button");
     if (settings.canvaslayout == '3D') settings.canvaslayout = 'FB';

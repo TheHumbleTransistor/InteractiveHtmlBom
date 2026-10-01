@@ -72,16 +72,18 @@ through component edges at grazing angles.
 
 ### Pin 1
 
-Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`) -- no new
-control. Each pin-1 pad gets a 3D marker standing straight up off the pad: a sphere on a cone whose
-tip touches the pad, coloured from the 2D view's own `--pin1-outline-color` CSS variable so it
-matches the canvas and follows dark mode for free. A "1" on the sphere always faces the camera. The
-marker keeps the same size on screen; **3D: Pin 1 marker size** and **3D: Pin 1 marker opacity** in
-the settings menu adjust it. Markers are drawn in a second pass on top of the scene, since pin 1
-usually sits under the part's body, and are shown only while their side of the board faces the
-camera, so the board itself never hides them.
+Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`). Each pin-1 pad
+gets a 3D marker: a sphere whose bottom sits on top of the part's 3D model, on a cone that runs down
+to touch the pad and meets the sphere where their surfaces are tangent. So the marker always clears
+its own part, however tall. It is coloured from the 2D view's own `--pin1-outline-color` CSS
+variable, so it matches the canvas and follows dark mode.
 
-The marker's tip sits on the **board face**, not on the footprint node's origin: the origin is
+The sphere's radius is half the pin-1 pad's longer side (at least 0.4 mm), so the marker is sized
+in board millimetres and grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker
+size** in the settings menu scales it (25–300 %). Markers have their own render pass and light, so
+the board's dimming doesn't reach them.
+
+The cone's tip sits on the **board face**, not on the footprint node's origin: the origin is
 skewed by any z offset the 3D model carries (`J5`'s is 3.85 mm, which left its mark hovering in
 mid-air), and the land pattern is where the mark belongs anyway. It is also drawn for parts the placed
 filter is hiding -- an unfitted part is exactly when you need to know which end pin 1 is.

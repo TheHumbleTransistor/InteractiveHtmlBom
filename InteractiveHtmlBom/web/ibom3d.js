@@ -24,8 +24,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
-// Marker height per unit of camera distance at 100 %: ~40 px tall on a 900 px pane.
-const PIN1_MARKER_SIZE = 0.028;
+const PIN1_RADIUS_PER_PAD = 0.5;   // sphere radius / the pad's longer side, at 100 %
+const PIN1_MIN_RADIUS_MM = 0.4;
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
@@ -78,7 +78,7 @@ var pendingResize = false;
 var boardRadius = 0;
 var boardTopY = 0, boardBottomY = 0;
 var pin1Group = null;
-var overlay = null, overlayLight = null;   // second render pass for the pin-1 markers
+var overlay = null, overlayLight = null;   // the pin-1 markers' own render pass and light
 var xform = null;            // solved board-mm -> model-units mapping, see solveTransform()
 var placedOnly = false;
 var lastRefs = [];
@@ -537,79 +537,70 @@ function buildDnpCrosses() {
   return group;
 }
 
-/* Pin-1 markers, honouring iBOM's existing highlight_pin1 setting -- no new control. */
-/* Pin-1 marker parts, in marker units (tip at the origin, 1 tall): a cone pointing at the pad with a
- * sphere on top, and a "1" label that always faces the camera. Cached per colour and opacity. */
-const PIN1_CONE = new THREE.ConeGeometry(0.3, 0.65, 24).rotateX(Math.PI).translate(0, 0.325, 0);
-const PIN1_SPHERE = new THREE.SphereGeometry(0.35, 32, 16).translate(0, 0.65, 0);
-var pin1LabelTexture = null;
+/* Pin-1 marker: a sphere whose bottom sits on top of the part's 3D model, on a cone whose tip touches
+ * the pin-1 pad and which meets the sphere where their surfaces are tangent. */
 var pin1Materials = {};
 
-function pin1Parts(color, opacity) {
-  const key = color + ':' + opacity;
-  if (pin1Materials[key]) return pin1Materials[key];
-  if (!pin1LabelTexture) {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    ctx.font = 'bold 104px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 10;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
-    ctx.strokeText('1', 64, 70);
-    ctx.fillStyle = 'black';
-    ctx.fillText('1', 64, 70);
-    pin1LabelTexture = new THREE.CanvasTexture(canvas);
-    pin1LabelTexture.colorSpace = THREE.SRGBColorSpace;
+function pin1Material(color) {
+  if (!pin1Materials[color]) {
+    pin1Materials[color] = new THREE.MeshStandardMaterial(
+      { color: color, roughness: 0.35, metalness: 0 });
   }
-  const transparent = opacity < 1;
-  pin1Materials[key] = {
-    body: new THREE.MeshStandardMaterial(
-      { color: color, roughness: 0.35, metalness: 0, transparent: transparent, opacity: opacity }),
-    label: new THREE.SpriteMaterial({ map: pin1LabelTexture, depthTest: false, depthWrite: false,
-                                      transparent: true, opacity: opacity, toneMapped: false }),
-  };
-  return pin1Materials[key];
+  return pin1Materials[color];
 }
 
-function pin1Setting(name, def, min, max) {
-  const v = (typeof settings !== "undefined" && settings[name] !== undefined) ? settings[name] : def;
-  return Math.min(Math.max(v, min), max) / 100;
+function pin1Scale() {
+  const v = (typeof settings !== "undefined" && settings.pin1Size3d !== undefined)
+    ? settings.pin1Size3d : 100;
+  return Math.min(Math.max(v, 25), 300) / 100;
+}
+
+/* How far the part's 3D model rises off the board face it is mounted on, in model units. */
+function partHeight(fp) {
+  const nodes = nodesFor(fp.ref);
+  if (!nodes.length) return 0;
+  const box = new THREE.Box3();
+  for (const n of nodes) box.expandByObject(n);
+  return Math.max(fp.layer === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
+}
+
+function buildPin1Marker(fp, pad, mat) {
+  const back = fp.layer === 'B';
+  const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.max(...pad.size))
+    * pin1Scale() * 0.001;
+  const d = Math.max(partHeight(fp), r) + r;          // pad to sphere centre
+  const slant = Math.sqrt(d * d - r * r);
+  const ringH = slant * slant / d, ringR = r * slant / d;
+  const marker = new THREE.Group();
+  marker.add(
+    new THREE.Mesh(new THREE.ConeGeometry(ringR, ringH, 24).rotateX(Math.PI)
+      .translate(0, ringH / 2, 0), mat),
+    new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16).translate(0, d, 0), mat));
+  marker.position.copy(toModel(pad.pos, back ? boardBottomY : boardTopY));
+  if (back) marker.rotation.x = Math.PI;              // stand off the bottom face
+  return marker;
 }
 
 function updatePin1(refs) {
   if (!pin1Group) return;
+  pin1Group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
   pin1Group.clear();
   const mode = settings.highlightpin1;
   if (!xform || mode == "none") return;
   const wanted = (mode == "all") ? null : new Set(refs || []);
   const css = getComputedStyle(document.documentElement)
     .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const parts = pin1Parts(css || PIN1_COLOR_FALLBACK, pin1Setting('pin1Opacity3d', 100, 10, 100));
+  const mat = pin1Material(css || PIN1_COLOR_FALLBACK);
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
     // Deliberately NOT skipped when the placed filter hides the part: the marker marks the LAND
     // PATTERN, which is still on screen, and an unfitted part is exactly when you need to know
     // which end pin 1 is.
-    // Sit the marker on the BOARD FACE, not on the footprint node's origin. The origin is skewed
+    // Root the marker on the BOARD FACE, not on the footprint node's origin. The origin is skewed
     // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its mark hovering in
-    // mid-air -- and the marker belongs on the land pattern anyway, where it stays visible once the
-    // part itself is hidden.
-    const y = (fp.layer === 'B') ? boardBottomY : boardTopY;
+    // mid-air -- and the marker belongs on the land pattern anyway.
     for (const pad of (fp.pads || [])) {
-      if (!pad.pin1) continue;
-      const marker = new THREE.Group();
-      marker.add(new THREE.Mesh(PIN1_CONE, parts.body), new THREE.Mesh(PIN1_SPHERE, parts.body));
-      const label = new THREE.Sprite(parts.label);
-      label.position.set(0, 0.65, 0);
-      label.scale.setScalar(0.5);
-      label.renderOrder = 1;                 // after its own sphere
-      marker.add(label);
-      marker.position.copy(toModel(pad.pos, y));
-      if (fp.layer === 'B') marker.rotation.x = Math.PI;   // stand off the bottom face
-      marker.userData.back = fp.layer === 'B';
-      pin1Group.add(marker);
+      if (pad.pin1) pin1Group.add(buildPin1Marker(fp, pad, mat));
     }
   }
 }
@@ -740,21 +731,14 @@ function render() {
   if (!ready) return;
   const top = viewingTop();
   if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (top ? 1 : -1);
-  // Markers are drawn in a second pass over the scene so the part body can't hide them; the board
-  // must not either, so only the side facing the camera shows its markers.
   if (pin1Group) {
-    const size = PIN1_MARKER_SIZE * pin1Setting('pin1Size3d', 100, 25, 300);
-    for (const m of pin1Group.children) {
-      m.visible = m.userData.back !== top;
-      m.scale.setScalar(camera.position.distanceTo(m.position) * size);
-    }
     overlayLight.position.copy(camera.position);
     overlayLight.target.position.copy(controls.target);
   }
   setDepthRange(camera.position.distanceTo(controls.target));
+  // The markers have their own pass so the board's dimming doesn't reach them; depth is shared.
   renderer.clear();
   renderer.render(scene, camera);
-  renderer.clearDepth();
   renderer.render(overlay, camera);
 }
 
@@ -937,7 +921,7 @@ function init3D(glbDataUri) {
 
 window.__ibom3d = { get camera() { return camera; }, get controls() { return controls; },
                     get scene() { return scene; }, get nodes() { return nodesByRef; },
-                    get xform() { return xform; } };
+                    get xform() { return xform; }, get pin1() { return pin1Group; } };
 window.init3D = init3D;
 window.highlight3D = highlight3D;
 window.resize3D = resize3D;
