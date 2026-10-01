@@ -595,7 +595,7 @@ function initDefaults() {
   initBooleanSetting("dnpOutline", false, "dnpOutlineCheckbox", dnpOutline);
   initBooleanSetting("dnpMarkers", true, "dnpMarkersCheckbox", dnpMarkers);
   initBooleanSetting("redrawOnDrag", config.redraw_on_drag, "dragCheckbox", setRedrawOnDrag);
-  initBooleanSetting("highlightRowOnClick", false, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
+  initBooleanSetting("highlightRowOnClick", true, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
   initBooleanSetting("placed3donly", true, "placed3dOnlyCheckbox", setPlaced3dOnly);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
