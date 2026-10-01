@@ -20,11 +20,14 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-// Follow the 2D view's own CSS variable rather than hardcoding, so the dot matches the canvas
+// Follow the 2D view's own CSS variable rather than hardcoding, so the marker matches the canvas
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
-const PIN1_COLOR_FALLBACK = 0xffb629;
-const PIN1_RADIUS_MM = 0.55;
+const PIN1_COLOR_FALLBACK = '#ffb629';
+const PIN1_RADIUS_PER_PAD = 0.35;  // sphere radius / the pad's shorter side, at 100 %
+const PIN1_MIN_RADIUS_MM = 0.2;
+const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
+const PIN1_LEAN_DEG = 15;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
@@ -77,6 +80,7 @@ var pendingResize = false;
 var boardRadius = 0;
 var boardTopY = 0, boardBottomY = 0;
 var pin1Group = null;
+var overlay = null, overlayLight = null;   // the pin-1 markers' own render pass and light
 var xform = null;            // solved board-mm -> model-units mapping, see solveTransform()
 var placedOnly = false;
 var lastRefs = [];
@@ -398,7 +402,7 @@ function boardFrame() {
  *
  * Measured on KiCad 10 it is the identity: board x,y in mm maps to model x,z in metres, no
  * offset and no sign flip. Solving it anyway costs ~15 lines and means a future KiCad that
- * changes the convention degrades to "no pin-1 dots" instead of dots in the wrong place.
+ * changes the convention degrades to "no pin-1 markers" instead of markers in the wrong place.
  *
  * Judge the fit on the MEDIAN residual, not the worst. A footprint whose 3D model carries its
  * own `(offset ...)` -- J5 is 7 mm out on this project's board -- is a legitimate outlier, so a
@@ -535,34 +539,105 @@ function buildDnpCrosses() {
   return group;
 }
 
-/* Pin-1 dots, honouring iBOM's existing highlight_pin1 setting -- no new control. */
+/* Pin-1 marker: a sphere whose bottom sits on top of the part's 3D model, on a cone whose tip touches
+ * the pin-1 pad and which meets the sphere where their surfaces are tangent. */
+var pin1Materials = {};
+
+function pin1Material(color) {
+  if (!pin1Materials[color]) {
+    pin1Materials[color] = new THREE.MeshStandardMaterial(
+      { color: color, roughness: 0.35, metalness: 0 });
+  }
+  return pin1Materials[color];
+}
+
+function pin1Scale() {
+  const v = (typeof settings !== "undefined" && settings.pin1Size3d !== undefined)
+    ? settings.pin1Size3d : 100;
+  return Math.min(Math.max(v, 50), 200) / 100;
+}
+
+/* How far the part's 3D model rises off the board face it is mounted on, in model units. */
+function partHeight(fp) {
+  const nodes = nodesFor(fp.ref);
+  if (!nodes.length) return 0;
+  const box = new THREE.Box3();
+  for (const n of nodes) box.expandByObject(n);
+  return Math.max(fp.layer === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
+}
+
+/* Unit vector in board mm from the centroid of the footprint's pads to this pad, or null when the
+ * pad sits on the centroid (single-pad footprints). */
+function pin1Outward(fp, pad) {
+  const n = fp.pads.length;
+  const dx = pad.pos[0] - fp.pads.reduce((a, p) => a + p.pos[0], 0) / n;
+  const dy = pad.pos[1] - fp.pads.reduce((a, p) => a + p.pos[1], 0) / n;
+  const len = Math.hypot(dx, dy);
+  return len < 1e-6 ? null : [dx / len, dy / len];
+}
+
+/* Where the marker's tip lands, in board mm: PIN1_TIP_FROM_EDGE in from the pad's outer end. "Outer"
+ * is along whichever pad axis best matches the direction from the centroid of the footprint's pads
+ * to this pad, so a corner pin is still marked at its toe rather than pushed sideways. */
+function pin1Tip(fp, pad) {
+  const out = pin1Outward(fp, pad);
+  if (!out) return pad.pos;
+  const [dx, dy] = out;
+  // The 2D renderer draws a pad rotated by -angle; rotate by +angle to work pad-local.
+  const a = THREE.MathUtils.degToRad(pad.angle || 0), c = Math.cos(a), s = Math.sin(a);
+  const lx = dx * c - dy * s, ly = dx * s + dy * c;
+  const k = 0.5 - PIN1_TIP_FROM_EDGE;
+  const ox = Math.abs(lx) >= Math.abs(ly) ? Math.sign(lx) * k * pad.size[0] : 0;
+  const oy = Math.abs(lx) >= Math.abs(ly) ? 0 : Math.sign(ly) * k * pad.size[1];
+  return [pad.pos[0] + ox * c + oy * s, pad.pos[1] - ox * s + oy * c];
+}
+
+function buildPin1Marker(fp, pad, mat) {
+  const back = fp.layer === 'B';
+  const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))
+    * pin1Scale() * 0.001;
+  const out = pin1Outward(fp, pad);
+  const lean = out ? THREE.MathUtils.degToRad(PIN1_LEAN_DEG) : 0;
+  // Pad to sphere centre along the marker's axis; the centre's height off the board still clears
+  // the part.
+  const d = (Math.max(partHeight(fp), r) + r) / Math.cos(lean);
+  const slant = Math.sqrt(d * d - r * r);
+  const ringH = slant * slant / d, ringR = r * slant / d;
+  const marker = new THREE.Group();
+  marker.add(
+    new THREE.Mesh(new THREE.ConeGeometry(ringR, ringH, 24).rotateX(Math.PI)
+      .translate(0, ringH / 2, 0), mat),
+    new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16).translate(0, d, 0), mat));
+  marker.position.copy(toModel(pin1Tip(fp, pad), back ? boardBottomY : boardTopY));
+  const axis = new THREE.Vector3(0, back ? -Math.cos(lean) : Math.cos(lean), 0);
+  if (out) {
+    axis.x = out[0] * Math.sin(lean);
+    axis.z = xform.zsign * out[1] * Math.sin(lean);
+  }
+  marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize());
+  return marker;
+}
+
 function updatePin1(refs) {
   if (!pin1Group) return;
+  pin1Group.traverse((o) => { if (o.isMesh) o.geometry.dispose(); });
   pin1Group.clear();
   const mode = settings.highlightpin1;
   if (!xform || mode == "none") return;
   const wanted = (mode == "all") ? null : new Set(refs || []);
-  const r = PIN1_RADIUS_MM * 0.001;
-  const geom = new THREE.SphereGeometry(r, 12, 8);
   const css = getComputedStyle(document.documentElement)
     .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const mat = new THREE.MeshBasicMaterial(
-    { color: css ? new THREE.Color(css) : new THREE.Color(PIN1_COLOR_FALLBACK) });
+  const mat = pin1Material(css || PIN1_COLOR_FALLBACK);
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
-    // Deliberately NOT skipped when the placed filter hides the part: the dot marks the LAND
+    // Deliberately NOT skipped when the placed filter hides the part: the marker marks the LAND
     // PATTERN, which is still on screen, and an unfitted part is exactly when you need to know
     // which end pin 1 is.
-    // Sit the dot on the BOARD FACE, not on the footprint node's origin. The origin is skewed
-    // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its dot hovering in
-    // mid-air -- and the dot belongs on the land pattern anyway, where it stays visible once the
-    // part itself is hidden.
-    const y = (fp.layer === 'B') ? boardBottomY : boardTopY;
+    // Root the marker on the BOARD FACE, not on the footprint node's origin. The origin is skewed
+    // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its mark hovering in
+    // mid-air -- and the marker belongs on the land pattern anyway.
     for (const pad of (fp.pads || [])) {
-      if (!pad.pin1) continue;
-      const dot = new THREE.Mesh(geom, mat);
-      dot.position.copy(toModel(pad.pos, y + (fp.layer === 'B' ? -r : r)));
-      pin1Group.add(dot);
+      if (pad.pin1) pin1Group.add(buildPin1Marker(fp, pad, mat));
     }
   }
 }
@@ -608,7 +683,7 @@ function applyDim() {
   const f = THREE.MathUtils.lerp(1, DIM_FLOOR, dimFraction());
   scene.environmentIntensity = ENV_INTENSITY * f;
   if (keyLight) keyLight.intensity = KEY_INTENSITY * f;
-  // Pin-1 dots are MeshBasicMaterial and therefore unlit, so they stay bright on the dimmed
+  // Pin-1 markers have their own lighting in the overlay pass, so they stay bright on the dimmed
   // board. Deliberate -- they are a marker, not scenery.
 }
 
@@ -688,9 +763,17 @@ function frame(box, immediate, t) {
 
 function render() {
   if (!ready) return;
-  if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (viewingTop() ? 1 : -1);
+  const top = viewingTop();
+  if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (top ? 1 : -1);
+  if (pin1Group) {
+    overlayLight.position.copy(camera.position);
+    overlayLight.target.position.copy(controls.target);
+  }
   setDepthRange(camera.position.distanceTo(controls.target));
+  // The markers have their own pass so the board's dimming doesn't reach them; depth is shared.
+  renderer.clear();
   renderer.render(scene, camera);
+  renderer.render(overlay, camera);
 }
 
 function clearHighlight() {
@@ -779,6 +862,7 @@ function init3D(glbDataUri) {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(35, 1, 0.001, 100);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.autoClear = false;
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.toneMapping = THREE.NeutralToneMapping || THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = TONE_EXPOSURE;
@@ -786,6 +870,10 @@ function init3D(glbDataUri) {
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  overlay = new THREE.Scene();
+  overlay.environment = scene.environment;
+  overlayLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  overlay.add(overlayLight, overlayLight.target);
   scene.environmentIntensity = ENV_INTENSITY;
   pmrem.dispose();                       // one-time GPU pass; nothing to keep afterwards
   keyLight = new THREE.DirectionalLight(0xffffff, KEY_INTENSITY);
@@ -853,7 +941,7 @@ function init3D(glbDataUri) {
       console.log('ibom3d: board->model fit from ' + xform.n + ' footprints, median residual '
         + (xform.med * 1000).toFixed(3) + ' mm, ' + xform.outliers + ' outliers');
       pin1Group = new THREE.Group();
-      scene.add(pin1Group);
+      overlay.add(pin1Group);
       dnpGroup = buildDnpCrosses();
       scene.add(dnpGroup);
       applyDnpMarkers();
@@ -884,7 +972,7 @@ function init3D(glbDataUri) {
 
 window.__ibom3d = { get camera() { return camera; }, get controls() { return controls; },
                     get scene() { return scene; }, get nodes() { return nodesByRef; },
-                    get xform() { return xform; } };
+                    get xform() { return xform; }, get pin1() { return pin1Group; } };
 window.init3D = init3D;
 window.highlight3D = highlight3D;
 window.resize3D = resize3D;

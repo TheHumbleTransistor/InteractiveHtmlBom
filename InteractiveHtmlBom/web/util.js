@@ -516,6 +516,7 @@ var settings = {
   boardRotation: 0,
   zoom3d: 0,
   dim3d: 75,
+  pin1Size3d: 100,
   offsetBackRotation: false,
   renderPads: true,
   renderReferences: true,
@@ -656,6 +657,11 @@ function initDefaults() {
   }
   document.getElementById("dim3dSlider").value = settings.dim3d;
   document.getElementById("dim3dLevel").textContent = settings.dim3d;
+
+  var storedPin1Size = readStorage("pin1Size3d");
+  settings.pin1Size3d = storedPin1Size === null ? 100 : parseInt(storedPin1Size);
+  document.getElementById("pin1Size3dSlider").value = settings.pin1Size3d;
+  document.getElementById("pin1Size3dLevel").textContent = settings.pin1Size3d;
 
   initBooleanSetting("offsetBackRotation", config.offset_back_rotation, "offsetBackRotationCheckbox", setOffsetBackRotation);
 
