@@ -618,14 +618,43 @@ function viewingTop() {
 }
 
 /* If every selected part with a model is on the side facing away, mirror the camera through the
- * board's plane: same distance and heading, seen from the other side. */
+ * board's plane: same distance and heading, seen from the other side. Returns whether it flipped. */
 function flipToSelection(refs) {
   const layers = new Set(refs.filter(r => nodesFor(r).length)
     .map(r => (pcbdata.footprints.find(f => f.ref === r) || {}).layer));
   const visible = viewingTop() ? 'F' : 'B';
-  if (!layers.size || layers.has(visible)) return;
+  if (!layers.size || layers.has(visible)) return false;
   camera.position.y = 2 * controls.target.y - camera.position.y;
   controls.update();
+  return true;
+}
+
+const FLIP_MS = 500;
+var flipAnim = null;
+
+function stopFlipAnimation() {
+  if (flipAnim) cancelAnimationFrame(flipAnim);
+  flipAnim = null;
+}
+
+/* Swing the camera from the mirror image of its current position, over the board's edge, to where
+ * it is now. Distance, heading and target are held; only the elevation moves. */
+function animateFlip() {
+  stopFlipAnimation();
+  const end = new THREE.Spherical().setFromVector3(
+    camera.position.clone().sub(controls.target));
+  const startPhi = Math.PI - end.phi;
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min((now - t0) / FLIP_MS, 1);
+    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const s = new THREE.Spherical(end.radius, THREE.MathUtils.lerp(startPhi, end.phi, ease), end.theta);
+    camera.position.setFromSpherical(s).add(controls.target);
+    camera.lookAt(controls.target);
+    render();
+    flipAnim = k < 1 ? requestAnimationFrame(step) : null;
+  };
+  step(t0);
 }
 
 function frame(box, immediate, t) {
@@ -702,9 +731,11 @@ function highlight3D(refs, noFrame) {
     }
   }
   if (!noFrame) {
-    flipToSelection(refs);
+    stopFlipAnimation();
+    const flipped = flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
+    if (flipped) animateFlip();
   }
   updatePin1(refs);
   applyDim();
@@ -752,6 +783,7 @@ function init3D(glbDataUri) {
   // page runs no animation loop at all.
   controls.enableDamping = false;
   controls.addEventListener('change', render);
+  controls.addEventListener('start', stopFlipAnimation);
 
   // Double-click anywhere in the 3D view clears the selection. No raycast: any double-click
   // means "get me out of this", whether it lands on a part or on bare board. OrbitControls binds
