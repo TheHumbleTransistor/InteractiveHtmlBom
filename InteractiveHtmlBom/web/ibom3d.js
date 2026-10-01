@@ -26,6 +26,7 @@ const PIN1_COLOR_FALLBACK = 0xffb629;
 const PIN1_RADIUS_MM = 0.55;
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
+const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
 const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical FOV
 // Never close in past this fraction of the whole board's radius. Without it a 0805 fills the
 // screen and you lose all sense of WHERE on the board you are looking, which is most of the
@@ -472,6 +473,31 @@ function setPlacedOnly(on) {
   applyPlacedFilter();
 }
 
+/* A red cross over each DNP footprint's bounding box, on the board face it mounts to. */
+function buildDnpCrosses() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: DNP_COLOR });
+  for (const i of (pcbdata.bom.dnp || [])) {
+    const fp = pcbdata.footprints[i], bb = fp.bbox;
+    const a = THREE.MathUtils.degToRad(-bb.angle), c = Math.cos(a), s = Math.sin(a);
+    const corner = (u, v) => {
+      const x = bb.relpos[0] + u * bb.size[0], y = bb.relpos[1] + v * bb.size[1];
+      return [bb.pos[0] + x * c - y * s, bb.pos[1] + x * s + y * c];
+    };
+    const y = (fp.layer === 'B') ? boardBottomY - DNP_LIFT_MM * 0.001
+                                 : boardTopY + DNP_LIFT_MM * 0.001;
+    const width = Math.max(Math.min(...bb.size) * 0.25, 0.3) * 0.001;
+    for (const [p, q] of [[corner(0, 0), corner(1, 1)], [corner(1, 0), corner(0, 1)]]) {
+      const from = toModel(p, y), to = toModel(q, y);
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(from.distanceTo(to), 1e-5, width), mat);
+      bar.position.addVectors(from, to).multiplyScalar(0.5);
+      bar.rotation.y = Math.atan2(-(to.z - from.z), to.x - from.x);
+      group.add(bar);
+    }
+  }
+  return group;
+}
+
 /* Pin-1 dots, honouring iBOM's existing highlight_pin1 setting -- no new control. */
 function updatePin1(refs) {
   if (!pin1Group) return;
@@ -711,6 +737,7 @@ function init3D(glbDataUri) {
         + (xform.med * 1000).toFixed(3) + ' mm, ' + xform.outliers + ' outliers');
       pin1Group = new THREE.Group();
       scene.add(pin1Group);
+      scene.add(buildDnpCrosses());
     } else {
       console.warn('ibom3d: could not fit board->model transform; pin 1 markers disabled');
     }

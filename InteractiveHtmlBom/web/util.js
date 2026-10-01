@@ -3,6 +3,7 @@
 var storagePrefix = 'KiCad_HTML_BOM__' + pcbdata.metadata.title + '__' +
   pcbdata.metadata.revision + '__#';
 var storage;
+var dnpFootprints = new Set(pcbdata.bom.dnp || []);
 
 function initStorage(key) {
   try {

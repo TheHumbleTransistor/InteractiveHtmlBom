@@ -366,6 +366,24 @@ function drawFootprint(ctx, layer, scalefactor, footprint, colors, highlight, ou
   }
 }
 
+function drawDnpCross(ctx, scalefactor, footprint, color) {
+  var [w, h] = footprint.bbox.size;
+  ctx.save();
+  ctx.translate(...footprint.bbox.pos);
+  ctx.rotate(deg2rad(-footprint.bbox.angle));
+  ctx.translate(...footprint.bbox.relpos);
+  ctx.strokeStyle = color;
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(Math.min(w, h) * 0.25, 3 / scalefactor);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(w, h);
+  ctx.moveTo(w, 0);
+  ctx.lineTo(0, h);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawEdgeCuts(canvas, scalefactor) {
   var ctx = canvas.getContext("2d");
   var edgecolor = getComputedStyle(topmostdiv).getPropertyValue('--pcb-edge-color');
@@ -384,10 +402,12 @@ function drawFootprints(canvas, layer, scalefactor, highlight) {
     padHole: style.getPropertyValue('--pad-hole-color'),
     outline: style.getPropertyValue('--pin1-outline-color'),
   }
+  var dnpColor = style.getPropertyValue('--dnp-color');
 
   for (var i = 0; i < pcbdata.footprints.length; i++) {
     var fp = pcbdata.footprints[i];
-    var outline = settings.renderDnpOutline && pcbdata.bom.skipped.includes(i);
+    var dnp = dnpFootprints.has(i);
+    var outline = settings.renderDnpOutline && (dnp || pcbdata.bom.skipped.includes(i));
     var h = highlightedFootprints.includes(i);
     var d = markedFootprints.has(i);
     if (highlight) {
@@ -404,6 +424,9 @@ function drawFootprints(canvas, layer, scalefactor, highlight) {
     }
     if( h || d || !highlight) {
       drawFootprint(ctx, layer, scalefactor, fp, colors, highlight, outline);
+    }
+    if (dnp && !highlight && fp.layer == layer) {
+      drawDnpCross(ctx, scalefactor, fp, dnpColor);
     }
   }
 }

@@ -231,6 +231,18 @@ footprints" took the 1.545 mm bottom faces, which is true of every SMD's undersi
 left a flat cross-section of it welded to the board. **Measure which meshes are actually inside
 the node before designing a rule around it.**
 
+### DNP parts
+
+DNP parts are marked so an assembler can't miss them, with no setting to turn the marks off:
+
+- **BOM:** DNP refs are red and struck through, the row gets a red **DNP** badge, and a row that
+  is entirely DNP is tinted red with a red stripe that stays when the row is selected.
+- **2D and 3D:** a red cross over each DNP footprint. In 3D the part is hidden and the cross sits
+  on the bare land pattern.
+- **Checkbox progress** (e.g. *Placed 0/140*) leaves DNP parts out of the total.
+
+A part counts as DNP if `--dnp-field` marks it or KiCad's DNP flag (`kicad_dnp`) is set.
+
 ### Lighting
 
 **Every component material KiCad exports is `metalness: 1`** -- all 7608 meshes on this board.
