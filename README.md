@@ -352,9 +352,10 @@ demo/build.sh                 # -> demo/out/ibom-demo.html
 ```
 
 It needs `kicad-cli` and a python that can `import pcbnew` (`$PYTHON`, default `/usr/bin/python3`).
-CI runs the same script on every push and pull request and keeps the result as the
-`ibom-demo.html` artifact (unzipped) for 30 days. On a pull request, each run also posts a new
-comment linking its demo. Pushing a `v*` tag also attaches it to that tag's release as
+CI runs the same script for every pull request and for pushes to `3d-view` and `master`, and keeps
+the result as the `ibom-demo.html` artifact (unzipped) for 30 days. On a pull request, each build
+posts a new comment linking its demo; a newer push cancels a build still in progress, so only the
+latest commit gets one. Pushing a `v*` tag also attaches the demo to that tag's release as
 `ibom-demo-<tag>.html`, creating the release if there isn't one.
 
 ### Mounting type
