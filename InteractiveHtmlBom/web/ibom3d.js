@@ -26,6 +26,7 @@ const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
 const PIN1_RADIUS_PER_PAD = 0.35;  // sphere radius / the pad's shorter side, at 100 %
 const PIN1_MIN_RADIUS_MM = 0.2;
+const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
@@ -552,7 +553,7 @@ function pin1Material(color) {
 function pin1Scale() {
   const v = (typeof settings !== "undefined" && settings.pin1Size3d !== undefined)
     ? settings.pin1Size3d : 100;
-  return Math.min(Math.max(v, 25), 200) / 100;
+  return Math.min(Math.max(v, 50), 200) / 100;
 }
 
 /* How far the part's 3D model rises off the board face it is mounted on, in model units. */
@@ -564,7 +565,7 @@ function partHeight(fp) {
   return Math.max(fp.layer === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
 }
 
-/* Where the marker's tip lands, in board mm: 25 % of the pad's length in from its outer end. "Outer"
+/* Where the marker's tip lands, in board mm: PIN1_TIP_FROM_EDGE in from the pad's outer end. "Outer"
  * is along whichever pad axis best matches the direction from the centroid of the footprint's pads
  * to this pad, so a corner pin is still marked at its toe rather than pushed sideways. */
 function pin1Tip(fp, pad) {
@@ -576,8 +577,9 @@ function pin1Tip(fp, pad) {
   // The 2D renderer draws a pad rotated by -angle; rotate by +angle to work pad-local.
   const a = THREE.MathUtils.degToRad(pad.angle || 0), c = Math.cos(a), s = Math.sin(a);
   const lx = dx * c - dy * s, ly = dx * s + dy * c;
-  const ox = Math.abs(lx) >= Math.abs(ly) ? Math.sign(lx) * 0.25 * pad.size[0] : 0;
-  const oy = Math.abs(lx) >= Math.abs(ly) ? 0 : Math.sign(ly) * 0.25 * pad.size[1];
+  const k = 0.5 - PIN1_TIP_FROM_EDGE;
+  const ox = Math.abs(lx) >= Math.abs(ly) ? Math.sign(lx) * k * pad.size[0] : 0;
+  const oy = Math.abs(lx) >= Math.abs(ly) ? 0 : Math.sign(ly) * k * pad.size[1];
   return [pad.pos[0] + ox * c + oy * s, pad.pos[1] - ox * s + oy * c];
 }
 

@@ -80,7 +80,7 @@ variable, so it matches the canvas and follows dark mode.
 
 The sphere's radius is 0.35 × the pin-1 pad's shorter side (at least 0.2 mm), so the marker is sized
 in board millimetres and grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker
-size** in the settings menu scales it (25–200 %). Markers have their own render pass and light, so
+size** in the settings menu scales it (50–200 %). Markers have their own render pass and light, so
 the board's dimming doesn't reach them.
 
 The cone's tip sits on the **board face**, not on the footprint node's origin: the origin is
