@@ -76,7 +76,7 @@ class Config:
     extra_data_file = None
     glb_file = None
     netlist_initial_directory = ''  # This is relative to pcb file directory
-    show_fields = default_show_group_fields
+    show_fields = default_show_group_fields + ["Manufacturer", "MPN"]
     group_fields = default_show_group_fields
     normalize_field_case = False
     board_variant_field = ''

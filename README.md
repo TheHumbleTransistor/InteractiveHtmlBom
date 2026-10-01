@@ -365,6 +365,11 @@ The value comes from KiCad's footprint type (Footprint Properties, *SMD* or *Thr
 footprint left *Unspecified*, or a board from another EDA tool, counts as TH if any of its pads is
 through-hole and SMT otherwise.
 
+### Default columns
+
+Without `--show-fields` the BOM shows **Manufacturer** and **MPN** columns alongside Value and
+Footprint, even on a board where no part sets them. Grouping still defaults to Value and Footprint.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.
