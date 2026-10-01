@@ -23,7 +23,7 @@ INTERACTIVE_HTML_BOM_NO_DISPLAY=1 PYTHONPATH="$repo" "$python" \
   --glb "$tmp/demo.glb" \
   --extra-data-file "$board" \
   --dest-dir "$tmp" --name-format ibom-demo --no-browser \
-  --show-fields "Value,Footprint,kicad_dnp" \
+  --show-fields "Value,Footprint,Manufacturer,MPN,kicad_dnp" \
   --group-fields "Value,Footprint" \
   --checkboxes "Sourced,Placed" \
   --include-tracks --include-nets
