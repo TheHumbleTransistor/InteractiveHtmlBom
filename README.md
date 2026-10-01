@@ -191,6 +191,10 @@ A **3D: only show placed parts** checkbox in the settings menu, on by default. W
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
 
+**DNP parts are hidden in 3D until they are ticked Placed**, whether or not this is on, and
+selecting one does not reveal it. A DNP part that has been ticked Placed is shown tinted red. A
+part counts as DNP if `--dnp-field` marks it or KiCad's own DNP flag (`kicad_dnp`) is set.
+
 **Land patterns stay visible, and selecting an unplaced row reveals that part** — fully opaque,
 exactly as a placed part looks — so you can see the shape of the thing you are about to fit.
 
