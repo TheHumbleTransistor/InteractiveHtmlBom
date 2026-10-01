@@ -24,7 +24,7 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
-// Marker height as a fraction of the vertical field of view's tangent: ~40 px on a 900 px pane.
+// Marker height per unit of camera distance at 100 %: ~40 px tall on a 900 px pane.
 const PIN1_MARKER_SIZE = 0.028;
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
@@ -78,6 +78,7 @@ var pendingResize = false;
 var boardRadius = 0;
 var boardTopY = 0, boardBottomY = 0;
 var pin1Group = null;
+var overlay = null, overlayLight = null;   // second render pass for the pin-1 markers
 var xform = null;            // solved board-mm -> model-units mapping, see solveTransform()
 var placedOnly = false;
 var lastRefs = [];
@@ -537,36 +538,44 @@ function buildDnpCrosses() {
 }
 
 /* Pin-1 markers, honouring iBOM's existing highlight_pin1 setting -- no new control. */
-/* A map-pin marker: an upside-down teardrop with a "1", drawn on top of everything and always
- * facing the camera. Cached per colour, since dark mode changes it. */
+/* Pin-1 marker parts, in marker units (tip at the origin, 1 tall): a cone pointing at the pad with a
+ * sphere on top, and a "1" label that always faces the camera. Cached per colour and opacity. */
+const PIN1_CONE = new THREE.ConeGeometry(0.3, 0.65, 24).rotateX(Math.PI).translate(0, 0.325, 0);
+const PIN1_SPHERE = new THREE.SphereGeometry(0.35, 32, 16).translate(0, 0.65, 0);
+var pin1LabelTexture = null;
 var pin1Materials = {};
-function pin1Material(color) {
-  if (pin1Materials[color]) return pin1Materials[color];
-  const w = 96, h = 128, r = 40, cx = w / 2, cy = r + 4;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  const a = Math.asin(r / (h - 4 - cy));     // where the tangents from the tip meet the circle
-  ctx.beginPath();
-  ctx.moveTo(cx, h - 4);
-  ctx.arc(cx, cy, r, Math.PI / 2 + a, Math.PI / 2 - a);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.stroke();
-  ctx.fillStyle = 'black';
-  ctx.font = 'bold 56px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('1', cx, cy + 3);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  pin1Materials[color] = new THREE.SpriteMaterial({
-    map: tex, sizeAttenuation: false, depthTest: false, depthWrite: false, toneMapped: false });
-  return pin1Materials[color];
+
+function pin1Parts(color, opacity) {
+  const key = color + ':' + opacity;
+  if (pin1Materials[key]) return pin1Materials[key];
+  if (!pin1LabelTexture) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 104px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.strokeText('1', 64, 70);
+    ctx.fillStyle = 'black';
+    ctx.fillText('1', 64, 70);
+    pin1LabelTexture = new THREE.CanvasTexture(canvas);
+    pin1LabelTexture.colorSpace = THREE.SRGBColorSpace;
+  }
+  const transparent = opacity < 1;
+  pin1Materials[key] = {
+    body: new THREE.MeshStandardMaterial(
+      { color: color, roughness: 0.35, metalness: 0, transparent: transparent, opacity: opacity }),
+    label: new THREE.SpriteMaterial({ map: pin1LabelTexture, depthTest: false, depthWrite: false,
+                                      transparent: true, opacity: opacity, toneMapped: false }),
+  };
+  return pin1Materials[key];
+}
+
+function pin1Setting(name, def, min, max) {
+  const v = (typeof settings !== "undefined" && settings[name] !== undefined) ? settings[name] : def;
+  return Math.min(Math.max(v, min), max) / 100;
 }
 
 function updatePin1(refs) {
@@ -577,7 +586,7 @@ function updatePin1(refs) {
   const wanted = (mode == "all") ? null : new Set(refs || []);
   const css = getComputedStyle(document.documentElement)
     .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const mat = pin1Material(css || PIN1_COLOR_FALLBACK);
+  const parts = pin1Parts(css || PIN1_COLOR_FALLBACK, pin1Setting('pin1Opacity3d', 100, 10, 100));
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
     // Deliberately NOT skipped when the placed filter hides the part: the marker marks the LAND
@@ -590,11 +599,15 @@ function updatePin1(refs) {
     const y = (fp.layer === 'B') ? boardBottomY : boardTopY;
     for (const pad of (fp.pads || [])) {
       if (!pad.pin1) continue;
-      const marker = new THREE.Sprite(mat);
-      marker.center.set(0.5, 0);             // the teardrop's tip sits on the pad
-      marker.scale.set(PIN1_MARKER_SIZE * 0.75, PIN1_MARKER_SIZE, 1);
+      const marker = new THREE.Group();
+      marker.add(new THREE.Mesh(PIN1_CONE, parts.body), new THREE.Mesh(PIN1_SPHERE, parts.body));
+      const label = new THREE.Sprite(parts.label);
+      label.position.set(0, 0.65, 0);
+      label.scale.setScalar(0.5);
+      label.renderOrder = 1;                 // after its own sphere
+      marker.add(label);
       marker.position.copy(toModel(pad.pos, y));
-      marker.renderOrder = 10;
+      if (fp.layer === 'B') marker.rotation.x = Math.PI;   // stand off the bottom face
       marker.userData.back = fp.layer === 'B';
       pin1Group.add(marker);
     }
@@ -642,8 +655,8 @@ function applyDim() {
   const f = THREE.MathUtils.lerp(1, DIM_FLOOR, dimFraction());
   scene.environmentIntensity = ENV_INTENSITY * f;
   if (keyLight) keyLight.intensity = KEY_INTENSITY * f;
-  // Pin-1 markers are unlit sprites, so they stay bright on the dimmed board. Deliberate -- they
-  // are a marker, not scenery.
+  // Pin-1 markers have their own lighting in the overlay pass, so they stay bright on the dimmed
+  // board. Deliberate -- they are a marker, not scenery.
 }
 
 /* The board's top faces +Y, so the camera sees the top while it is above the board's plane. */
@@ -727,10 +740,22 @@ function render() {
   if (!ready) return;
   const top = viewingTop();
   if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (top ? 1 : -1);
-  // Markers ignore depth so the part body can't hide them; the board must not either.
-  if (pin1Group) for (const m of pin1Group.children) m.visible = m.userData.back !== top;
+  // Markers are drawn in a second pass over the scene so the part body can't hide them; the board
+  // must not either, so only the side facing the camera shows its markers.
+  if (pin1Group) {
+    const size = PIN1_MARKER_SIZE * pin1Setting('pin1Size3d', 100, 25, 300);
+    for (const m of pin1Group.children) {
+      m.visible = m.userData.back !== top;
+      m.scale.setScalar(camera.position.distanceTo(m.position) * size);
+    }
+    overlayLight.position.copy(camera.position);
+    overlayLight.target.position.copy(controls.target);
+  }
   setDepthRange(camera.position.distanceTo(controls.target));
+  renderer.clear();
   renderer.render(scene, camera);
+  renderer.clearDepth();
+  renderer.render(overlay, camera);
 }
 
 function clearHighlight() {
@@ -818,6 +843,7 @@ function init3D(glbDataUri) {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(35, 1, 0.001, 100);
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.autoClear = false;
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   renderer.toneMapping = THREE.NeutralToneMapping || THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = TONE_EXPOSURE;
@@ -825,6 +851,10 @@ function init3D(glbDataUri) {
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  overlay = new THREE.Scene();
+  overlay.environment = scene.environment;
+  overlayLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  overlay.add(overlayLight, overlayLight.target);
   scene.environmentIntensity = ENV_INTENSITY;
   pmrem.dispose();                       // one-time GPU pass; nothing to keep afterwards
   keyLight = new THREE.DirectionalLight(0xffffff, KEY_INTENSITY);
@@ -876,7 +906,7 @@ function init3D(glbDataUri) {
       console.log('ibom3d: board->model fit from ' + xform.n + ' footprints, median residual '
         + (xform.med * 1000).toFixed(3) + ' mm, ' + xform.outliers + ' outliers');
       pin1Group = new THREE.Group();
-      scene.add(pin1Group);
+      overlay.add(pin1Group);
       dnpGroup = buildDnpCrosses();
       scene.add(dnpGroup);
       applyDnpMarkers();

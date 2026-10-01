@@ -73,11 +73,13 @@ through component edges at grazing angles.
 ### Pin 1
 
 Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`) -- no new
-control. Each pin-1 pad gets a map-pin marker: an upside-down teardrop with a "1" on it, tip on the
-pad, coloured from the 2D view's own `--pin1-outline-color` CSS variable so it matches the canvas
-and follows dark mode for free. It always faces the camera and stays the same size on screen. It is
-drawn on top of the parts, since pin 1 usually sits under the part's body, and is shown only while
-its side of the board faces the camera, so the board itself never hides it.
+control. Each pin-1 pad gets a 3D marker standing straight up off the pad: a sphere on a cone whose
+tip touches the pad, coloured from the 2D view's own `--pin1-outline-color` CSS variable so it
+matches the canvas and follows dark mode for free. A "1" on the sphere always faces the camera. The
+marker keeps the same size on screen; **3D: Pin 1 marker size** and **3D: Pin 1 marker opacity** in
+the settings menu adjust it. Markers are drawn in a second pass on top of the scene, since pin 1
+usually sits under the part's body, and are shown only while their side of the board faces the
+camera, so the board itself never hides them.
 
 The marker's tip sits on the **board face**, not on the footprint node's origin: the origin is
 skewed by any z offset the 3D model carries (`J5`'s is 3.85 mm, which left its mark hovering in
@@ -193,8 +195,8 @@ dimming (`HIGHLIGHT_EMISSIVE_DIM`) or it reads as a muddy dark part with a red t
 clean red one. `DIM_FACTOR` controls how far down everything else goes.
 
 Only active while something is selected — deselecting restores the lights, verified. Pin-1 markers are
-unlit sprites, so they stay bright on the dimmed board; deliberate, they are a marker rather than
-scenery.
+drawn in their own pass with their own lighting, so they stay bright on the dimmed board;
+deliberate, they are a marker rather than scenery.
 
 ### Only show placed parts
 

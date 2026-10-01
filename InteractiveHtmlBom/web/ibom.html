@@ -180,6 +180,18 @@
             <input id="dim3dSlider" type="range" min="0" max="100" value="75" class="slider"
                    oninput="setDim3d(this.value)">
           </label>
+          <label class="menu-label" id="pin1Size3dContainer">
+            <span>3D: Pin 1 marker size</span>
+            <span style="float: right"><span id="pin1Size3dLevel">100</span>%</span>
+            <input id="pin1Size3dSlider" type="range" min="25" max="300" value="100" class="slider"
+                   oninput="setPin1Size3d(this.value)">
+          </label>
+          <label class="menu-label" id="pin1Opacity3dContainer">
+            <span>3D: Pin 1 marker opacity</span>
+            <span style="float: right"><span id="pin1Opacity3dLevel">100</span>%</span>
+            <input id="pin1Opacity3dSlider" type="range" min="10" max="100" value="100" class="slider"
+                   oninput="setPin1Opacity3d(this.value)">
+          </label>
           <label class="menu-label" id="placed3dOnlyContainer">
             <input id="placed3dOnlyCheckbox" type="checkbox" onchange="setPlaced3dOnly(this.checked)">
             3D: Only show placed parts
