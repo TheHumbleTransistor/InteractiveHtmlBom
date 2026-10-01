@@ -1,6 +1,6 @@
 /* 3D board view.
  *
- * Glue only. three.js does the rendering, GLTFLoader the parsing and OrbitControls the
+ * Glue only. three.js does the rendering, GLTFLoader the parsing and TrackballControls the
  * interaction; all three are vendored unmodified under web/three/.
  *
  * The whole feature rests on one property of KiCad's GLB export: every footprint becomes a
@@ -10,7 +10,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three-gltfloader';
-import { OrbitControls } from 'three-orbitcontrols';
+import { TrackballControls } from 'three-trackballcontrols';
 import { RoomEnvironment } from 'three-roomenv';
 
 const HIGHLIGHT = 0x22ff22;
@@ -573,7 +573,7 @@ function updatePin1(refs) {
  * perspective depth buffer concentrates precision near the near plane, so a far/near ratio of
  * 10000 (the old dist/1000 .. dist*10) left 17.9 um per depth step out at the board -- not
  * enough to resolve a 10 um gap, so it stippled. At dist*0.02 .. dist*4 it is 0.89 um.
- * Recomputed on every render because OrbitControls changes the distance without going through
+ * Recomputed on every render because the controls change the distance without going through
  * frame().
  */
 function setDepthRange(dist) {
@@ -620,14 +620,11 @@ function viewingTop() {
 /* The line on the board that looks vertical on screen: turning the camera about it turns the board
  * over like a page. */
 function flipAxis() {
-  return new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).setY(0).normalize();
-}
-
-/* OrbitControls derives its orbit axis from camera.up only when constructed. */
-function setCameraUp(up) {
-  camera.up.copy(up);
-  controls._quat.setFromUnitVectors(camera.up, new THREE.Vector3(0, 1, 0));
-  controls._quatInverse.copy(controls._quat).invert();
+  const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).setY(0);
+  if (axis.lengthSq() < 1e-6) {          // board seen edge-on with up across it: use screen-right
+    axis.set(1, 0, 0).applyQuaternion(camera.quaternion).setY(0);
+  }
+  return axis.normalize();
 }
 
 /* If every selected part with a model is on the side facing away, turn the camera half a turn about
@@ -640,7 +637,7 @@ function flipToSelection(refs) {
   const axis = flipAxis();
   const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
   camera.position.sub(controls.target).applyQuaternion(q).add(controls.target);
-  setCameraUp(camera.up.clone().applyQuaternion(q));
+  camera.up.applyQuaternion(q);
   controls.update();
   return axis;
 }
@@ -771,6 +768,7 @@ function resize3D() {
   renderer.setSize(el.clientWidth, el.clientHeight);
   camera.aspect = el.clientWidth / el.clientHeight;
   camera.updateProjectionMatrix();
+  controls.handleResize();               // the controls map pointer positions to the pane's size
   render();
 }
 
@@ -794,16 +792,32 @@ function init3D(glbDataUri) {
   keyLight.position.set(1, 2, 1.5);
   scene.add(keyLight);
 
-  controls = new OrbitControls(camera, renderer.domElement);
-  // No damping: the board stops the instant you let go. Damping is also the only thing that
-  // needs a per-frame update(), so without it the 'change' event alone drives rendering and the
-  // page runs no animation loop at all.
-  controls.enableDamping = false;
+  // Trackball rather than orbit controls: no fixed up direction, so the board turns freely past
+  // the poles. It only moves the camera in update(), so update() is pumped once per frame while
+  // a gesture is live, plus one frame after it ends (a wheel step starts and ends at once).
+  controls = new TrackballControls(camera, renderer.domElement);
+  controls.staticMoving = true;          // stops the instant you let go
+  controls.rotateSpeed = 3;
   controls.addEventListener('change', render);
-  controls.addEventListener('start', stopFlipAnimation);
+  var gestureLive = false, controlsFrame = null;
+  const pumpControls = () => {
+    controlsFrame = requestAnimationFrame(() => {
+      controls.update();
+      if (gestureLive) pumpControls(); else controlsFrame = null;
+    });
+  };
+  controls.addEventListener('start', () => {
+    stopFlipAnimation();
+    gestureLive = true;
+    if (!controlsFrame) pumpControls();
+  });
+  controls.addEventListener('end', () => {
+    gestureLive = false;
+    if (!controlsFrame) pumpControls();
+  });
 
   // Double-click anywhere in the 3D view clears the selection. No raycast: any double-click
-  // means "get me out of this", whether it lands on a part or on bare board. OrbitControls binds
+  // means "get me out of this", whether it lands on a part or on bare board. The controls bind
   // no dblclick of its own, and a double-click involves no drag, so nothing conflicts.
   renderer.domElement.addEventListener('dblclick', () => {
     if (typeof clearHighlightedFootprints === "function" && lastRefs.length) {

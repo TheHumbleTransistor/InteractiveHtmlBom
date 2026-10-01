@@ -66,7 +66,7 @@ The artwork layers stipple if you get this wrong. On this board they sit at 1.46
 
 A perspective depth buffer spends most of its precision near the near plane, so an absurd
 far/near ratio starves the far end. `setDepthRange()` recomputes it on every frame, because
-OrbitControls changes the viewing distance without going through the fit code. A flat
+the camera controls change the viewing distance without going through the fit code. A flat
 `polygonOffset` of -1 on artwork faces remains as a cheap guard for boards where faces genuinely
 do coincide -- deliberately flat rather than ranked, since large offsets make artwork bleed
 through component edges at grazing angles.
@@ -141,6 +141,12 @@ Two things worth knowing if you touch it:
 - `frame()` reads `settings.zoom3d` on every call rather than caching it. `initDefaults()` restores
   it at `window.onload` while the GLB loads asynchronously, so a mirrored copy is a race.
 
+### Free rotation
+
+The board turns freely in every direction, over the top and underneath, with no stop at the poles:
+the view uses three.js's TrackballControls rather than OrbitControls, which keeps a fixed "up"
+direction. Left-drag rotates, the wheel zooms and right-drag pans, as before.
+
 ### Flip to the selection
 
 Selecting parts that are all on the side facing away from the camera turns the board over, like
@@ -158,7 +164,7 @@ board and holds the camera. This fork adds two ways out:
 
 - **Escape** — works in either mode, hooked into the existing `document.onkeydown` switch.
 - **Double-clicking the 3D view** — no raycast; any double-click means "get me out of this",
-  whether it lands on a part or on bare board. OrbitControls binds no `dblclick` of its own and a
+  whether it lands on a part or on bare board. The camera controls bind no `dblclick` of their own and a
   double-click involves no drag, so the camera is untouched.
 - **Clicking the selected row again** — click mode only. In hover mode (the default, when
   *Highlight row only on click* is off) that same handler is bound to `onmousemove` and fires on every
