@@ -606,7 +606,7 @@ function initDefaults() {
   var anyDnp = pcbdata.bom.both.some(row => row.some(r => dnpFootprints.has(r[1])));
   var fields = ["checkboxes", "References"]
     .concat(config.fields.filter(f => f != "kicad_dnp" || anyDnp))
-    .concat([MOUNT_COLUMN, "Quantity"]);
+    .concat([MOUNT_COLUMN, SIDE_COLUMN, "Quantity"]);
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
     // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
@@ -715,4 +715,13 @@ function footprintMount(i) {
 function mountLabels(references) {
   return [...new Set(references.map(r => footprintMount(r[1])))].sort()
     .map(m => MOUNT_LABELS[m].concat([MOUNT_ICONS[m]]));
+}
+
+const SIDE_COLUMN = "Side";
+
+/* [label, sort key] for each board side the references are mounted on, top first. */
+function sideLabels(references) {
+  return [["F", "Top"], ["B", "Bottom"]]
+    .filter(([layer]) => references.some(r => pcbdata.footprints[r[1]].layer == layer))
+    .map(([layer, label]) => [label, layer == "F" ? "0" : "1"]);
 }
