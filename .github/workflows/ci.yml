@@ -19,6 +19,7 @@ jobs:
         kicad-version:
           - "8.0"
           - "9.0"
+          - "10.0"
 
     runs-on: ${{ matrix.os }}-latest
     container:
@@ -27,13 +28,13 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up build environment
         shell: bash
         run: |
           apt update && apt install -y python3-pip
-          python3 -m pip install --break-system-packages --upgrade hatch
+          python3 -m pip install --break-system-packages --ignore-installed hatch
 
       - name: Test
         run: hatch -v run pytest -vv tests
