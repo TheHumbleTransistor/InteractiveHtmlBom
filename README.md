@@ -187,7 +187,7 @@ marker rather than scenery.
 
 ### Only show placed parts
 
-A **3D: only show placed parts** checkbox in the settings menu. With it on, the 3D view shows
+A **3D: only show placed parts** checkbox in the settings menu, on by default. With it on, the 3D view shows
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
 
