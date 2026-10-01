@@ -617,16 +617,32 @@ function viewingTop() {
   return camera.position.y >= controls.target.y;
 }
 
-/* If every selected part with a model is on the side facing away, mirror the camera through the
- * board's plane: same distance and heading, seen from the other side. Returns whether it flipped. */
+/* The line on the board that looks vertical on screen: turning the camera about it turns the board
+ * over like a page. */
+function flipAxis() {
+  return new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).setY(0).normalize();
+}
+
+/* OrbitControls derives its orbit axis from camera.up only when constructed. */
+function setCameraUp(up) {
+  camera.up.copy(up);
+  controls._quat.setFromUnitVectors(camera.up, new THREE.Vector3(0, 1, 0));
+  controls._quatInverse.copy(controls._quat).invert();
+}
+
+/* If every selected part with a model is on the side facing away, turn the camera half a turn about
+ * flipAxis(). Returns that axis if it flipped, else null. */
 function flipToSelection(refs) {
   const layers = new Set(refs.filter(r => nodesFor(r).length)
     .map(r => (pcbdata.footprints.find(f => f.ref === r) || {}).layer));
   const visible = viewingTop() ? 'F' : 'B';
-  if (!layers.size || layers.has(visible)) return false;
-  camera.position.y = 2 * controls.target.y - camera.position.y;
+  if (!layers.size || layers.has(visible)) return null;
+  const axis = flipAxis();
+  const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
+  camera.position.sub(controls.target).applyQuaternion(q).add(controls.target);
+  setCameraUp(camera.up.clone().applyQuaternion(q));
   controls.update();
-  return true;
+  return axis;
 }
 
 const FLIP_MS = 500;
@@ -637,19 +653,20 @@ function stopFlipAnimation() {
   flipAnim = null;
 }
 
-/* Swing the camera from the mirror image of its current position, over the board's edge, to where
- * it is now. Distance, heading and target are held; only the elevation moves. */
-function animateFlip() {
+/* Animate the half turn about `axis` that ends at the camera's current position and up. */
+function animateFlip(axis) {
   stopFlipAnimation();
-  const end = new THREE.Spherical().setFromVector3(
-    camera.position.clone().sub(controls.target));
-  const startPhi = Math.PI - end.phi;
+  const half = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
+  const endUp = camera.up.clone();
+  const fromOffset = camera.position.clone().sub(controls.target).applyQuaternion(half);
+  const fromUp = endUp.clone().applyQuaternion(half);
   const t0 = performance.now();
   const step = (now) => {
     const k = Math.min((now - t0) / FLIP_MS, 1);
     const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-    const s = new THREE.Spherical(end.radius, THREE.MathUtils.lerp(startPhi, end.phi, ease), end.theta);
-    camera.position.setFromSpherical(s).add(controls.target);
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI * ease);
+    camera.position.copy(fromOffset).applyQuaternion(q).add(controls.target);
+    camera.up.copy(k < 1 ? fromUp.clone().applyQuaternion(q) : endUp);
     camera.lookAt(controls.target);
     render();
     flipAnim = k < 1 ? requestAnimationFrame(step) : null;
@@ -735,7 +752,7 @@ function highlight3D(refs, noFrame) {
     const flipped = flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
-    if (flipped) animateFlip();
+    if (flipped) animateFlip(flipped);
   }
   updatePin1(refs);
   applyDim();
