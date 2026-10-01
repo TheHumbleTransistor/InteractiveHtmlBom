@@ -658,7 +658,7 @@ class PcbnewParser(EcadParser):
             pads = [p[1] for p in pads]
 
             # add footprint
-            footprints.append({
+            footprint = {
                 "ref": ref,
                 "bbox": bbox,
                 "pads": pads,
@@ -667,7 +667,13 @@ class PcbnewParser(EcadParser):
                     pcbnew.F_Cu: "F",
                     pcbnew.B_Cu: "B"
                 }.get(f.GetLayer())
-            })
+            }
+            if hasattr(pcbnew, 'FP_THROUGH_HOLE'):
+                if f.GetAttributes() & pcbnew.FP_THROUGH_HOLE:
+                    footprint["mount"] = "th"
+                elif f.GetAttributes() & pcbnew.FP_SMD:
+                    footprint["mount"] = "smd"
+            footprints.append(footprint)
 
         return footprints
 

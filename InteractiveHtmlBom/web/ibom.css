@@ -946,3 +946,11 @@ a {
   padding: 1em;
   font-family: monospace;
 }
+
+.bom .mount-col {
+  width: 80px;
+}
+
+.bom .mount {
+  cursor: help;
+}

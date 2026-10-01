@@ -354,6 +354,16 @@ CI runs the same script on every push and pull request and keeps the result as t
 `ibom-demo.html` artifact (unzipped) for 30 days. Pushing a `v*` tag also attaches it to that tag's release as
 `ibom-demo-<tag>.html`, creating the release if there isn't one.
 
+### Mounting type
+
+A **Mounting Type** column, visible by default, shows **SMT** or **TH** so assembly can run as
+an SMT pass followed by a through-hole pass. Sort on it to group the passes, or type `smt` / `th`
+in the filter box. Hovering the header or a value explains the acronym.
+
+The value comes from KiCad's footprint type (Footprint Properties, *SMD* or *Through hole*). A
+footprint left *Unspecified*, or a board from another EDA tool, counts as TH if any of its pads is
+through-hole and SMT otherwise.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.
