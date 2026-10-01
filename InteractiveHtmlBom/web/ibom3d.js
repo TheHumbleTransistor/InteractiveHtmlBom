@@ -612,6 +612,68 @@ function applyDim() {
   // board. Deliberate -- they are a marker, not scenery.
 }
 
+/* The board's top faces +Y, so the camera sees the top while it is above the board's plane. */
+function viewingTop() {
+  return camera.position.y >= controls.target.y;
+}
+
+/* The line on the board that looks vertical on screen: turning the camera about it turns the board
+ * over like a page. */
+function flipAxis() {
+  return new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).setY(0).normalize();
+}
+
+/* OrbitControls derives its orbit axis from camera.up only when constructed. */
+function setCameraUp(up) {
+  camera.up.copy(up);
+  controls._quat.setFromUnitVectors(camera.up, new THREE.Vector3(0, 1, 0));
+  controls._quatInverse.copy(controls._quat).invert();
+}
+
+/* If every selected part with a model is on the side facing away, turn the camera half a turn about
+ * flipAxis(). Returns that axis if it flipped, else null. */
+function flipToSelection(refs) {
+  const layers = new Set(refs.filter(r => nodesFor(r).length)
+    .map(r => (pcbdata.footprints.find(f => f.ref === r) || {}).layer));
+  const visible = viewingTop() ? 'F' : 'B';
+  if (!layers.size || layers.has(visible)) return null;
+  const axis = flipAxis();
+  const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
+  camera.position.sub(controls.target).applyQuaternion(q).add(controls.target);
+  setCameraUp(camera.up.clone().applyQuaternion(q));
+  controls.update();
+  return axis;
+}
+
+const FLIP_MS = 500;
+var flipAnim = null;
+
+function stopFlipAnimation() {
+  if (flipAnim) cancelAnimationFrame(flipAnim);
+  flipAnim = null;
+}
+
+/* Animate the half turn about `axis` that ends at the camera's current position and up. */
+function animateFlip(axis) {
+  stopFlipAnimation();
+  const half = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
+  const endUp = camera.up.clone();
+  const fromOffset = camera.position.clone().sub(controls.target).applyQuaternion(half);
+  const fromUp = endUp.clone().applyQuaternion(half);
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min((now - t0) / FLIP_MS, 1);
+    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI * ease);
+    camera.position.copy(fromOffset).applyQuaternion(q).add(controls.target);
+    camera.up.copy(k < 1 ? fromUp.clone().applyQuaternion(q) : endUp);
+    camera.lookAt(controls.target);
+    render();
+    flipAnim = k < 1 ? requestAnimationFrame(step) : null;
+  };
+  step(t0);
+}
+
 function frame(box, immediate, t) {
   if (t === undefined) t = zoomFraction();
   const sphere = box.getBoundingSphere(new THREE.Sphere());
@@ -629,6 +691,7 @@ function frame(box, immediate, t) {
 
 function render() {
   if (!ready) return;
+  if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (viewingTop() ? 1 : -1);
   setDepthRange(camera.position.distanceTo(controls.target));
   renderer.render(scene, camera);
 }
@@ -685,8 +748,11 @@ function highlight3D(refs, noFrame) {
     }
   }
   if (!noFrame) {
+    stopFlipAnimation();
+    const flipped = flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
+    if (flipped) animateFlip(flipped);
   }
   updatePin1(refs);
   applyDim();
@@ -734,6 +800,7 @@ function init3D(glbDataUri) {
   // page runs no animation loop at all.
   controls.enableDamping = false;
   controls.addEventListener('change', render);
+  controls.addEventListener('start', stopFlipAnimation);
 
   // Double-click anywhere in the 3D view clears the selection. No raycast: any double-click
   // means "get me out of this", whether it lands on a part or on bare board. OrbitControls binds
