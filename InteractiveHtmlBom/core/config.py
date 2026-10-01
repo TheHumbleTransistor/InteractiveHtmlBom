@@ -51,7 +51,7 @@ class Config:
     show_fabrication = False
     show_silkscreen = True
     redraw_on_drag = True
-    highlight_pin1 = highlight_pin1_choices[0]
+    highlight_pin1 = 'selected'
     board_rotation = 0
     offset_back_rotation = False
     checkboxes = ','.join(default_checkboxes)
@@ -376,7 +376,7 @@ class Config:
                             help='Show silkscreen by default.',
                             action='store_false', default=False)
         parser.add_argument('--highlight-pin1',
-                            default=cls.highlight_pin1_choices[0],
+                            default=cls.highlight_pin1,
                             const=cls.highlight_pin1_choices[1],
                             choices=cls.highlight_pin1_choices,
                             nargs='?',
