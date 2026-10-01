@@ -551,7 +551,7 @@ function initDefaults() {
   }
   settings.canvaslayout = readStorage("canvaslayout");
   if (settings.canvaslayout === null) {
-    settings.canvaslayout = config.layer_view;
+    settings.canvaslayout = window.has3D ? "3D" : config.layer_view;
   }
   var bomCheckboxes = readStorage("bomCheckboxes");
   if (bomCheckboxes === null) {

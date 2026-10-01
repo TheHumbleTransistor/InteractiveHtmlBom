@@ -28,7 +28,8 @@ and can be packaged with documentation of your project or hosted anywhere on the
 ## 3D board view (this fork)
 
 Adds a **3D** button beside F / FB / B. Selecting a BOM row highlights those parts in the 3D
-scene and frames the camera on them.
+scene and frames the camera on them. When a 3D model is embedded the BOM opens in the 3D view,
+unless the browser has saved another choice.
 
 ```sh
 kicad-cli pcb export glb --include-pads --include-silkscreen --include-soldermask \
