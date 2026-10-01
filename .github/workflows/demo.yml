@@ -16,6 +16,8 @@ jobs:
   build:
     name: Build demo iBOM
     runs-on: ubuntu-latest
+    outputs:
+      artifact-url: ${{ steps.upload.outputs.artifact-url }}
     container:
       image: kicad/kicad:10.0
       options: --user root
@@ -28,11 +30,40 @@ jobs:
         run: demo/build.sh "$GITHUB_WORKSPACE/ibom-demo.html"
 
       - name: Upload demo
+        id: upload
         uses: actions/upload-artifact@v7
         with:
           path: ibom-demo.html
           archive: false
           retention-days: 30
+
+  comment:
+    name: Link demo in PR
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Post or update comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          URL: ${{ needs.build.outputs.artifact-url }}
+        run: |
+          marker='<!-- ibom-demo -->'
+          body="$marker
+          **Demo iBOM** for ${SHA:0:7}: [ibom-demo.html]($URL) (kept 30 days)"
+          id=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GH_REPO/issues/comments/$id" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR" --body "$body"
+          fi
 
   release:
     name: Attach demo to release
