@@ -24,6 +24,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = 0xffb629;
 const PIN1_RADIUS_MM = 0.55;
+const DNP_COLOR = 0xe00000;
+const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical FOV
 // Never close in past this fraction of the whole board's radius. Without it a 0805 fills the
 // screen and you lose all sense of WHERE on the board you are looking, which is most of the
@@ -424,6 +426,28 @@ function isDnp(ref) {
   return dnpRefs.has(ref);
 }
 
+var dnpTinted = new Map();   // mesh -> original material, for DNP parts marked placed
+var dnpTintCache = new Map();
+
+function setDnpTint(node, on) {
+  node.traverse((o) => {
+    if (!o.isMesh) return;
+    if (on && !dnpTinted.has(o)) {
+      dnpTinted.set(o, o.material);
+      var mat = dnpTintCache.get(o.material.uuid);
+      if (!mat) {
+        mat = o.material.clone();
+        mat.color.lerp(new THREE.Color(DNP_COLOR), DNP_TINT);
+        dnpTintCache.set(o.material.uuid, mat);
+      }
+      o.material = mat;
+    } else if (!on && dnpTinted.has(o)) {
+      o.material = dnpTinted.get(o);
+      dnpTinted.delete(o);
+    }
+  });
+}
+
 function applyPlacedFilter() {
   if (!ready) return;
   // Drop the highlight first: savedState records visibility as it was when the highlight was
@@ -431,9 +455,13 @@ function applyPlacedFilter() {
   const active = lastRefs;
   clearHighlight();
   for (const fp of pcbdata.footprints) {
-    const show = !isDnp(fp.ref) && (!placedOnly || isPlaced(fp.ref));
+    const dnp = isDnp(fp.ref), placed = isPlaced(fp.ref);
+    const show = dnp ? placed : (!placedOnly || placed);
     // Hide the whole node. Pads and silkscreen are board-level, so they stay put.
-    for (const node of nodesFor(fp.ref)) node.visible = show;
+    for (const node of nodesFor(fp.ref)) {
+      node.visible = show;
+      if (dnp) setDnpTint(node, placed);
+    }
   }
   if (active && active.length) highlight3D(active);
   else { updatePin1(lastRefs); render(); }
@@ -562,7 +590,7 @@ function highlight3D(refs, noFrame) {
   var hit = 0, dnp = 0, missing = 0;
   for (const ref of refs) {
     const nodes = nodesFor(ref);
-    if (isDnp(ref)) dnp++;
+    if (isDnp(ref) && !isPlaced(ref)) dnp++;
     else if (!nodes.length) missing++;
     if (!nodes.length) continue;       // no 3D model for this part -- legitimate, skip it
     hit++;
@@ -603,7 +631,7 @@ function highlight3D(refs, noFrame) {
   const note = document.getElementById("board3d-missing");
   if (note) {
     const notes = [];
-    if (dnp) notes.push(dnp + " selected part(s) are DNP and not shown");
+    if (dnp) notes.push(dnp + " selected part(s) are DNP and not placed, so not shown");
     if (missing) notes.push(missing + " selected part(s) have no 3D model");
     note.textContent = notes.join("; ");
   }
