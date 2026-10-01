@@ -1,0 +1,64 @@
+name: Demo
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build demo iBOM
+    runs-on: ubuntu-latest
+    container:
+      image: kicad/kicad:10.0
+      options: --user root
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build demo
+        run: demo/build.sh "$GITHUB_WORKSPACE/ibom-demo.html"
+
+      - name: Upload demo
+        uses: actions/upload-artifact@v7
+        with:
+          path: ibom-demo.html
+          archive: false
+          retention-days: 30
+
+  release:
+    name: Attach demo to release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download demo
+        uses: actions/download-artifact@v8
+        with:
+          name: ibom-demo.html
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mv ibom-demo.html "ibom-demo-$TAG.html"
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --verify-tag --generate-notes
+          gh release upload "$TAG" "ibom-demo-$TAG.html" --clobber
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}

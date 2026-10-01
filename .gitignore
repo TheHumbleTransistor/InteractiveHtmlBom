@@ -5,7 +5,10 @@
 *.bak
 test
 releases
-demo
+demo/out/
+*.kicad_prl
+*-backups/
+fp-info-cache
 *config.ini
 InteractiveHtmlBom/web/user*
 dist/

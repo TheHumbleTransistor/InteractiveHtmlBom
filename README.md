@@ -338,6 +338,21 @@ excludes from the BOM -- so no BOM row is ever unmatched.
 - `tests/check_3d.py` screenshots a generated file in headless Chromium (software WebGL, no GPU
   needed). It is the only thing that can catch a blank 3D pane, which is otherwise silent.
 
+### Demo board
+
+`demo/` holds a small KiCad 10 board for trying changes without another project. It has two DNP
+parts (R4, C5) and two parts on the back (R6, C6). Its 3D models are copied into
+`demo/3dmodels/`, so it builds without KiCad's model library.
+
+```sh
+demo/build.sh                 # -> demo/out/ibom-demo.html
+```
+
+It needs `kicad-cli` and a python that can `import pcbnew` (`$PYTHON`, default `/usr/bin/python3`).
+CI runs the same script on every push and pull request and keeps the result as the
+`ibom-demo.html` artifact (unzipped) for 30 days. Pushing a `v*` tag also attaches it to that tag's release as
+`ibom-demo-<tag>.html`, creating the release if there isn't one.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.
