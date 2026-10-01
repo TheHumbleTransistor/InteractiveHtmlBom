@@ -249,7 +249,9 @@ DNP parts are marked so an assembler can't miss them:
   Hovering the header or a badge explains it ("DNP = Do Not Populate"). On a board with no DNP parts in the
   BOM the column is left out, header and column menu alike.
 
-A part counts as DNP if `--dnp-field` marks it or KiCad's DNP flag (`kicad_dnp`) is set.
+A part counts as DNP if `--dnp-field` marks it or KiCad's DNP flag (`kicad_dnp`) is set. A part
+whose *value* says "DNP" (as a word, any case) is treated as DNP too, and its value cell gets a
+yellow **WARNING** badge: DNP belongs in KiCad's DNP property, not the value.
 
 ### Lighting
 
