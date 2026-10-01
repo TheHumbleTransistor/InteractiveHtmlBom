@@ -3,9 +3,7 @@
 var bomsplit;
 var canvassplit;
 var initDone = false;
-var bomSortFunction = null;
-var currentSortColumn = null;
-var currentSortOrder = null;
+var sortKeys = [];  // [{name, order: "asc" | "desc", comparator}], highest priority first
 var currentHighlightedRowId;
 var highlightHandlers = [];
 var footprintIndexToHandler = {};
@@ -370,6 +368,10 @@ function entryMatches(entry) {
       }
     }
   }
+  if (!settings.hiddenColumns.includes(SIDE_COLUMN) &&
+      sideLabels(entry).some(l => l[0].toLowerCase().indexOf(filter) >= 0)) {
+    return true;
+  }
   if (!settings.hiddenColumns.includes(MOUNT_COLUMN) &&
       mountLabels(entry).some(l => l[0].toLowerCase().indexOf(filter) >= 0)) {
     return true;
@@ -491,40 +493,25 @@ function createColumnHeader(name, cls, comparator, is_checkbox = false) {
   var spacer = document.createElement("div");
   spacer.className = "column-spacer";
   th.appendChild(spacer);
-  spacer.onclick = function () {
-    if (currentSortColumn && th !== currentSortColumn) {
-      // Currently sorted by another column
-      currentSortColumn.childNodes[1].classList.remove(currentSortOrder);
-      currentSortColumn.childNodes[1].classList.add("none");
-      currentSortColumn = null;
-      currentSortOrder = null;
-    }
-    if (currentSortColumn && th === currentSortColumn) {
-      // Already sorted by this column
-      if (currentSortOrder == "asc") {
-        // Sort by this column, descending order
-        bomSortFunction = function (a, b) {
-          return -comparator(a, b);
-        }
-        currentSortColumn.childNodes[1].classList.remove("asc");
-        currentSortColumn.childNodes[1].classList.add("desc");
-        currentSortOrder = "desc";
-      } else {
-        // Unsort
-        bomSortFunction = null;
-        currentSortColumn.childNodes[1].classList.remove("desc");
-        currentSortColumn.childNodes[1].classList.add("none");
-        currentSortColumn = null;
-        currentSortOrder = null;
-      }
+  th.dataset.sortName = name;
+  var prio = document.createElement("SPAN");
+  prio.className = "sortprio";
+  th.appendChild(prio);
+  // Shift+click adds this column as a further sort key; a plain click sorts by it alone.
+  spacer.onclick = function (e) {
+    var i = sortKeys.findIndex(k => k.name == name);
+    if (!e.shiftKey) {
+      var order = (i >= 0 && sortKeys.length == 1) ? sortKeys[0].order : null;
+      sortKeys = order == "desc" ? [] :
+        [{ name: name, order: order == "asc" ? "desc" : "asc", comparator: comparator }];
+    } else if (i < 0) {
+      sortKeys.push({ name: name, order: "asc", comparator: comparator });
+    } else if (sortKeys[i].order == "asc") {
+      sortKeys[i].order = "desc";
     } else {
-      // Sort by this column, ascending order
-      bomSortFunction = comparator;
-      currentSortColumn = th;
-      currentSortColumn.childNodes[1].classList.remove("none");
-      currentSortColumn.childNodes[1].classList.add("asc");
-      currentSortOrder = "asc";
+      sortKeys.splice(i, 1);
     }
+    updateSortMarks();
     populateBomBody();
   }
   if (is_checkbox) {
@@ -682,6 +669,11 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
         });
         th.title = MOUNT_HEADER_TOOLTIP;
         tr.appendChild(th);
+      } else if (column === SIDE_COLUMN) {
+        var th = createColumnHeader(SIDE_COLUMN, "side-col", (a, b) =>
+          sideLabels(a).map(l => l[1]).join().localeCompare(sideLabels(b).map(l => l[1]).join()));
+        th.title = "Board side the part is mounted on";
+        tr.appendChild(th);
       } else if (column === "Quantity" && settings.bommode == "grouped") {
         tr.appendChild(createColumnHeader("Quantity", "quantity", (a, b) => {
           return a.length - b.length;
@@ -702,6 +694,32 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
     });
   }
   bomhead.appendChild(tr);
+  updateSortMarks();
+}
+
+function bomSortCompare(a, b) {
+  for (var k of sortKeys) {
+    var c = k.comparator(a, b);
+    if (c) return k.order == "asc" ? c : -c;
+  }
+  return 0;
+}
+
+function updateSortMarks() {
+  for (var th of bomhead.querySelectorAll("th")) {
+    var mark = th.querySelector(".sortmark");
+    if (!mark) continue;
+    var i = sortKeys.findIndex(k => k.name == th.dataset.sortName);
+    mark.classList.remove("asc", "desc", "none");
+    mark.classList.add(i < 0 ? "none" : sortKeys[i].order);
+    th.querySelector(".sortprio").textContent = (i >= 0 && sortKeys.length > 1) ? i + 1 : "";
+  }
+}
+
+function splitBySide(rows) {
+  return rows.flatMap(row => ["F", "B"]
+    .map(layer => row.filter(r => pcbdata.footprints[r[1]].layer == layer))
+    .filter(part => part.length));
 }
 
 function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
@@ -718,9 +736,12 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
   var defaultNetColor = style.getPropertyValue('--track-color').trim();
 
   bomtable = getSelectedBomList();
+  if (settings.bommode == "grouped" && !settings.hiddenColumns.includes(SIDE_COLUMN)) {
+    bomtable = splitBySide(bomtable);
+  }
 
-  if (bomSortFunction) {
-    bomtable = bomtable.sort(bomSortFunction);
+  if (sortKeys.length) {
+    bomtable = bomtable.sort(bomSortCompare);
   }
   for (var i in bomtable) {
     var bomentry = bomtable[i];
@@ -797,6 +818,10 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           td = document.createElement("TD");
           td.innerHTML = mountLabels(references).map(([label, tip, icon]) =>
             `<span class="mount" title="${tip}">${icon}${highlightFilter(label)}</span>`).join(", ");
+          tr.appendChild(td);
+        } else if (column === SIDE_COLUMN) {
+          td = document.createElement("TD");
+          td.innerHTML = sideLabels(references).map(l => highlightFilter(l[0])).join(", ");
           tr.appendChild(td);
         } else if (column === "Quantity" && settings.bommode == "grouped") {
           // Quantity
@@ -1154,9 +1179,7 @@ function changeBomMode(mode) {
   writeStorage("bommode", mode);
   if (mode != settings.bommode) {
     settings.bommode = mode;
-    bomSortFunction = null;
-    currentSortColumn = null;
-    currentSortOrder = null;
+    sortKeys = [];
     clearHighlightedFootprints();
   }
   populateBomTable();

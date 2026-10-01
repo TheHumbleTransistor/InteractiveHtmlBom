@@ -375,6 +375,14 @@ through-hole and SMT otherwise.
 Without `--show-fields` the BOM shows **Manufacturer** and **MPN** columns alongside Value and
 Footprint, even on a board where no part sets them. Grouping still defaults to Value and Footprint.
 
+### Side, and sorting by more than one column
+
+A **Side** column, visible by default, shows **Top** or **Bottom**. While it is shown, a group with
+parts on both sides is split into a top row and a bottom row; hide the column and they merge back.
+
+**Shift+click** a column header to add it as a further sort key, e.g. Side then Mounting Type. A
+small number on each sorted header shows its priority. A plain click sorts by that column alone.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.
