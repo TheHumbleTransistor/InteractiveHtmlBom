@@ -968,3 +968,13 @@ a {
   fill: #888;
   stroke: #888;
 }
+
+.warn-badge {
+  background-color: #f5c400;
+  color: black;
+  font-weight: bold;
+  padding: 0 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+  cursor: help;
+}

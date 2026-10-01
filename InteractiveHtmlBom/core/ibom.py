@@ -89,11 +89,17 @@ def skip_component(m, config):
     return False
 
 
+def is_value_dnp(m):
+    # type: (Component) -> bool
+    """The value names the part DNP: "DNP" as a whole word, any case."""
+    return re.search(r'(?<![a-z0-9])dnp(?![a-z0-9])', m.val, re.IGNORECASE) is not None
+
+
 def is_dnp(m, config):
     # type: (Component, Config) -> bool
     if config.dnp_field and m.extra_fields.get(config.dnp_field):
         return True
-    return bool(m.extra_fields.get('kicad_dnp'))
+    return bool(m.extra_fields.get('kicad_dnp')) or is_value_dnp(m)
 
 
 def generate_bom(pcb_footprints, config):
@@ -205,6 +211,7 @@ def generate_bom(pcb_footprints, config):
         'both': bom_table,
         'skipped': skipped_components,
         'dnp': [i for i, f in enumerate(pcb_footprints) if is_dnp(f, config)],
+        'dnp_value': [i for i, f in enumerate(pcb_footprints) if is_value_dnp(f)],
         'fields': index_to_fields
     }
 

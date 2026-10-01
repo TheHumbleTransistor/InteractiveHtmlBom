@@ -812,7 +812,7 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           references.map(r => r[1]).forEach((id) => valueSet.add(pcbdata.bom.fields[id][field_index]));
           td = document.createElement("TD");
           if (column == "kicad_dnp") {
-            if ([...valueSet].some(Boolean)) {
+            if (references.some(r => dnpFootprints.has(r[1]))) {
               td.innerHTML = `<span class="dnp-badge" title="${DNP_TOOLTIP}">DNP</span>`;
             }
             tr.appendChild(td);
@@ -828,6 +828,10 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
             }
           }
           td.innerHTML = output.join(", ");
+          if (column == "Value" && references.some(r => dnpValueFootprints.has(r[1]))) {
+            td.innerHTML = `<span class="warn-badge" title="${VALUE_DNP_TOOLTIP}">WARNING</span>` +
+              td.innerHTML;
+          }
           tr.appendChild(td);
         }
       });
