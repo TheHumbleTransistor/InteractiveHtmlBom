@@ -179,6 +179,7 @@ function findBoardFaces(root) {
  */
 var footprintMeshes = new Set();
 var silkMeshes = [];       // board-level flat faces beyond the mask, i.e. silkscreen
+var maskMeshes = new Set();
 
 function indexFootprintMeshes() {
   footprintMeshes.clear();
@@ -294,6 +295,7 @@ function tintBoardLayers(root) {
   const cache = new Map();
   for (const f of flats) {
     const isMask = masks.has(f.k), isCopper = coppers.has(f.k);
+    if (isMask) maskMeshes.add(f.mesh);
     if (!isMask && !isCopper) continue;
     const col = isMask ? MASK_COLOR : COPPER_COLOR;
     const key = f.mesh.material.uuid + ':' + col;
@@ -306,11 +308,10 @@ function tintBoardLayers(root) {
         mat.roughness = COPPER_ROUGHNESS;
       }
       if (isMask) {
-        // depthWrite stays ON: the mask must still occlude anything genuinely behind it, and
-        // three.js draws transparent materials after the opaque pass, so copper and substrate
-        // are already in the buffer to blend against.
+        // KiCad exports the mask as a blended material, which GLTFLoader loads with depthWrite off.
         mat.transparent = true;
         mat.opacity = MASK_OPACITY;
+        mat.depthWrite = true;
       }
       cache.set(key, mat);
     }
@@ -331,6 +332,30 @@ function tintBoardLayers(root) {
  * a ranked value, because large offsets make artwork bleed through component edges at grazing
  * angles.
  */
+/* Make every board-level material except the mask opaque.
+ *
+ * KiCad exports any layer colour with alpha < 1 (silkscreen with no stackup colour is 0.9, the
+ * substrate 0.98) as a blended material that writes no depth, so it neither hides what is behind
+ * it nor sorts stably: the far side's silkscreen shows through and text flickers on rotation. */
+function solidifyBoard(root) {
+  const cache = new Map();
+  var n = 0;
+  root.traverse((o) => {
+    if (!o.isMesh || footprintMeshes.has(o) || maskMeshes.has(o) || !o.material.transparent) return;
+    n++;
+    var mat = cache.get(o.material.uuid);
+    if (!mat) {
+      mat = o.material.clone();
+      mat.transparent = false;
+      mat.opacity = 1;
+      mat.depthWrite = true;
+      cache.set(o.material.uuid, mat);
+    }
+    o.material = mat;
+  });
+  return n;
+}
+
 function biasArtwork(root) {
   const cache = new Map();
   var n = 0;
@@ -720,10 +745,12 @@ function init3D(glbDataUri) {
     findBoardFaces(root);
     indexFootprintMeshes();
     const tinted = tintBoardLayers(root);
+    const solidified = solidifyBoard(root);
     const biased = biasArtwork(root);
     console.log('ibom3d: board ' + (boardBottomY * 1000).toFixed(3) + ' .. '
       + (boardTopY * 1000).toFixed(3) + ' mm, ' + biased + ' artwork faces, '
-      + footprintMeshes.size + ' component meshes, ' + silkMeshes.length + ' silkscreen faces'
+      + footprintMeshes.size + ' component meshes, ' + silkMeshes.length + ' silkscreen faces, '
+      + solidified + ' made opaque'
       + (tinted
           ? ', tinted front mask@' + tinted.mm(tinted.front && tinted.front.mask)
             + ' copper@' + tinted.mm(tinted.front && tinted.front.copper)
