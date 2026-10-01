@@ -245,7 +245,8 @@ DNP parts are marked so an assembler can't miss them:
 - **Ticking Placed** (or whichever column `--mark-when-checked` names) on a DNP row asks for
   confirmation first. The operator can still go ahead.
 - KiCad's DNP column (`kicad_dnp`) is headed **DNP** and shows a red **DNP** badge on DNP rows.
-  Hovering the header or a badge explains it ("DNP = Do Not Populate").
+  Hovering the header or a badge explains it ("DNP = Do Not Populate"). On a board with no DNP parts in the
+  BOM the column is left out, header and column menu alike.
 
 A part counts as DNP if `--dnp-field` marks it or KiCad's DNP flag (`kicad_dnp`) is set.
 
