@@ -144,9 +144,8 @@ Two things worth knowing if you touch it:
 
 Selecting parts that are all on the side facing away from the camera flips the view to the other
 side: the camera swings over the board's edge in half a second (distance and heading held) to the
-mirror image of where it was. If any
-selected part is on the visible side, the view stays put. The key light follows the camera to
-whichever side it is on, so the underside is lit like the top.
+mirror image of where it was. If any selected part is on the visible side, the view stays put. The
+key light follows the camera to whichever side it is on, so the underside is lit like the top.
 
 ### Deselecting
 
