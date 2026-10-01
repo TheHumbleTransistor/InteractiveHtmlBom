@@ -5,8 +5,10 @@ var storagePrefix = 'KiCad_HTML_BOM__' + pcbdata.metadata.title + '__' +
 var storage;
 var dnpFootprints = new Set(pcbdata.bom.dnp || []);
 
+const DNP_TOOLTIP = "This line item is intended NOT to be populated.  DNP = Do Not Populate";
+
 function fieldLabel(field) {
-  return field == "kicad_dnp" ? "Do Not Populate" : field;
+  return field == "kicad_dnp" ? "DNP" : field;
 }
 
 function initStorage(key) {
@@ -91,8 +93,6 @@ function saveBomTable(output) {
           if (node.checked) {
             val += '✓';
           }
-        } else if (node.classList && node.classList.contains("dnp-badge")) {
-          continue;
         } else if (node.nodeType == Node.ELEMENT_NODE) {
           val += node.textContent;
         } else {
@@ -603,8 +603,8 @@ function initDefaults() {
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
     // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
-    // BOM that lacks one of these columns. They stay available in the column menu.
-    hcols = ["Footprint", "kicad_dnp"];
+    // BOM that has no Footprint column. The column stays available in the column menu.
+    hcols = ["Footprint"];
   }
   settings.hiddenColumns = hcols.filter(e => fields.includes(e));
 

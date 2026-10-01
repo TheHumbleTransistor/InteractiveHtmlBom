@@ -682,6 +682,10 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
           return;
         var th = createColumnHeader(column, `field${i + 1}`, stringFieldCompareClosure(i));
         th.firstChild.nodeValue = fieldLabel(column);
+        if (column == "kicad_dnp") {
+          th.title = DNP_TOOLTIP;
+          th.classList.add("dnp-col");
+        }
         tr.appendChild(th);
       }
     });
@@ -774,14 +778,9 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           }
         } else if (column === "References") {
           td = document.createElement("TD");
-          var refsHtml = references.map(r => dnpFootprints.has(r[1])
+          td.innerHTML = references.map(r => dnpFootprints.has(r[1])
             ? '<span class="dnp-ref">' + highlightFilter(r[0]) + '</span>'
             : highlightFilter(r[0])).join(", ");
-          if (references.some(r => dnpFootprints.has(r[1]))) {
-            refsHtml = '<span class="dnp-badge" title="This line item is intended NOT to be populated.  ' +
-              'DNP = Do Not Populate">DNP</span>' + refsHtml;
-          }
-          td.innerHTML = refsHtml;
           tr.appendChild(td);
         } else if (column === "Quantity" && settings.bommode == "grouped") {
           // Quantity
@@ -796,6 +795,13 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           var valueSet = new Set();
           references.map(r => r[1]).forEach((id) => valueSet.add(pcbdata.bom.fields[id][field_index]));
           td = document.createElement("TD");
+          if (column == "kicad_dnp") {
+            if ([...valueSet].some(Boolean)) {
+              td.innerHTML = `<span class="dnp-badge" title="${DNP_TOOLTIP}">DNP</span>`;
+            }
+            tr.appendChild(td);
+            return;
+          }
           var output = new Array();
           for (let item of valueSet) {
             const visible = highlightFilter(String(item));

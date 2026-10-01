@@ -241,9 +241,7 @@ canvas:active {
   font-weight: bold;
   padding: 0 4px;
   border-radius: 3px;
-  margin-right: 4px;
   cursor: help;
-  float: left;
 }
 
 .dnp-ref {
@@ -290,6 +288,10 @@ canvas:active {
 
 .bom .value {
   width: 15%;
+}
+
+.bom .dnp-col {
+  width: 55px;
 }
 
 .bom .quantity {

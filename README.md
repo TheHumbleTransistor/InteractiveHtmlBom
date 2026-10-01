@@ -235,8 +235,7 @@ the node before designing a rule around it.**
 
 DNP parts are marked so an assembler can't miss them:
 
-- **BOM:** DNP refs are red and struck through, the row gets a red **DNP** badge, and a row that
-  is entirely DNP is tinted red with lightened text and a red stripe that stays when the row is
+- **BOM:** DNP refs are red and struck through, and a row that is entirely DNP is tinted red with lightened text and a red stripe that stays when the row is
   selected.
 - **2D and 3D:** a red cross over each DNP footprint, shown while the **DNP markers** setting is
   on (the default). In 3D the cross sits on the bare land pattern;
@@ -245,8 +244,8 @@ DNP parts are marked so an assembler can't miss them:
 - **Grouping** always puts DNP parts in their own row, whatever `--group-fields` says.
 - **Ticking Placed** (or whichever column `--mark-when-checked` names) on a DNP row asks for
   confirmation first. The operator can still go ahead.
-- KiCad's DNP column is headed **Do Not Populate**, and so is its value. It is hidden by default
-  (the column menu brings it back); hovering the **DNP** badge explains it instead.
+- KiCad's DNP column (`kicad_dnp`) is headed **DNP** and shows a red **DNP** badge on DNP rows.
+  Hovering the header or a badge explains it ("DNP = Do Not Populate").
 
 A part counts as DNP if `--dnp-field` marks it or KiCad's DNP flag (`kicad_dnp`) is set.
 
