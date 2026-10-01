@@ -27,6 +27,7 @@ const PIN1_COLOR_FALLBACK = '#ffb629';
 const PIN1_RADIUS_PER_PAD = 0.35;  // sphere radius / the pad's shorter side, at 100 %
 const PIN1_MIN_RADIUS_MM = 0.2;
 const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
+const PIN1_LEAN_DEG = 30;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
@@ -565,15 +566,23 @@ function partHeight(fp) {
   return Math.max(fp.layer === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
 }
 
+/* Unit vector in board mm from the centroid of the footprint's pads to this pad, or null when the
+ * pad sits on the centroid (single-pad footprints). */
+function pin1Outward(fp, pad) {
+  const n = fp.pads.length;
+  const dx = pad.pos[0] - fp.pads.reduce((a, p) => a + p.pos[0], 0) / n;
+  const dy = pad.pos[1] - fp.pads.reduce((a, p) => a + p.pos[1], 0) / n;
+  const len = Math.hypot(dx, dy);
+  return len < 1e-6 ? null : [dx / len, dy / len];
+}
+
 /* Where the marker's tip lands, in board mm: PIN1_TIP_FROM_EDGE in from the pad's outer end. "Outer"
  * is along whichever pad axis best matches the direction from the centroid of the footprint's pads
  * to this pad, so a corner pin is still marked at its toe rather than pushed sideways. */
 function pin1Tip(fp, pad) {
-  const n = fp.pads.length;
-  const cx = fp.pads.reduce((a, p) => a + p.pos[0], 0) / n;
-  const cy = fp.pads.reduce((a, p) => a + p.pos[1], 0) / n;
-  const dx = pad.pos[0] - cx, dy = pad.pos[1] - cy;
-  if (Math.hypot(dx, dy) < 1e-6) return pad.pos;
+  const out = pin1Outward(fp, pad);
+  if (!out) return pad.pos;
+  const [dx, dy] = out;
   // The 2D renderer draws a pad rotated by -angle; rotate by +angle to work pad-local.
   const a = THREE.MathUtils.degToRad(pad.angle || 0), c = Math.cos(a), s = Math.sin(a);
   const lx = dx * c - dy * s, ly = dx * s + dy * c;
@@ -587,7 +596,11 @@ function buildPin1Marker(fp, pad, mat) {
   const back = fp.layer === 'B';
   const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))
     * pin1Scale() * 0.001;
-  const d = Math.max(partHeight(fp), r) + r;          // pad to sphere centre
+  const out = pin1Outward(fp, pad);
+  const lean = out ? THREE.MathUtils.degToRad(PIN1_LEAN_DEG) : 0;
+  // Pad to sphere centre along the marker's axis; the centre's height off the board still clears
+  // the part.
+  const d = (Math.max(partHeight(fp), r) + r) / Math.cos(lean);
   const slant = Math.sqrt(d * d - r * r);
   const ringH = slant * slant / d, ringR = r * slant / d;
   const marker = new THREE.Group();
@@ -596,7 +609,12 @@ function buildPin1Marker(fp, pad, mat) {
       .translate(0, ringH / 2, 0), mat),
     new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16).translate(0, d, 0), mat));
   marker.position.copy(toModel(pin1Tip(fp, pad), back ? boardBottomY : boardTopY));
-  if (back) marker.rotation.x = Math.PI;              // stand off the bottom face
+  const axis = new THREE.Vector3(0, back ? -Math.cos(lean) : Math.cos(lean), 0);
+  if (out) {
+    axis.x = out[0] * Math.sin(lean);
+    axis.z = xform.zsign * out[1] * Math.sin(lean);
+  }
+  marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize());
   return marker;
 }
 
