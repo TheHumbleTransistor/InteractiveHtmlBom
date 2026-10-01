@@ -854,8 +854,7 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           }
           td.innerHTML = output.join(", ");
           if (column == "Value" && references.some(r => dnpValueFootprints.has(r[1]))) {
-            td.innerHTML = `<span class="warn-badge" title="${VALUE_DNP_TOOLTIP}">WARNING</span>` +
-              td.innerHTML;
+            td.innerHTML += `<span class="warn-badge" title="${VALUE_DNP_TOOLTIP}">WARNING</span>`;
           }
           tr.appendChild(td);
         }
