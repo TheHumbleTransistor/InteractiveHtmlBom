@@ -568,7 +568,7 @@
 				)
 			)
 		)
-		(property "Value" "10k DNP"
+		(property "Value" "DNP"
 			(at 0 1.65 90)
 			(layer "F.Fab")
 			(uuid "992045f7-7f4c-42f8-b31a-76e5e8848b94")

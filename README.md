@@ -346,7 +346,7 @@ excludes from the BOM -- so no BOM row is ever unmatched.
 ### Demo board
 
 `demo/` holds a small KiCad 10 board for trying changes without another project. R4 and C5 are
-DNP through KiCad's DNP property, and R7 only through its value ("10k DNP"), which shows the
+DNP through KiCad's DNP property, and R7 only through its value ("DNP"), which shows the
 WARNING badge. R6 and C6 are on the back. Every part has a Manufacturer and MPN. Its 3D models are copied into
 `demo/3dmodels/`, so it builds without KiCad's model library.
 
