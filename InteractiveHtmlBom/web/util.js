@@ -497,7 +497,7 @@ var settings = {
   checkboxes: [],
   checkboxStoredRefs: {},
   darkMode: false,
-  highlightpin1: "none",
+  highlightpin1: "selected",
   placed3donly: false,
   redrawOnDrag: true,
   boardRotation: 0,
