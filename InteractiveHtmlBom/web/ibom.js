@@ -228,6 +228,14 @@ function createCheckboxHandlers(input, checkbox, references, row) {
       checkbox: checkbox,
       refs: references,
     }
+    if (input.checked && checkbox == (settings.markWhenChecked || "Placed")) {
+      var dnpRefs = references.filter(r => dnpFootprints.has(r[1])).map(r => r[0]);
+      if (dnpRefs.length && !confirm(dnpRefs.join(", ") + (dnpRefs.length > 1 ? " are" : " is") +
+          " marked DO NOT POPULATE.\n\nMark as " + checkbox + " anyway?")) {
+        input.checked = false;
+        return;
+      }
+    }
     if (input.checked) {
       // checkbox ticked
       for (var ref of references) {
@@ -558,7 +566,7 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
 
     label.appendChild(input);
     if (column.length > 0)
-      label.append(column[0].toUpperCase() + column.slice(1));
+      label.append(fieldLabel(column)[0].toUpperCase() + fieldLabel(column).slice(1));
 
     viscontent.appendChild(label);
   });
@@ -665,8 +673,9 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
         var i = config.fields.indexOf(column);
         if (i < 0)
           return;
-        tr.appendChild(createColumnHeader(
-          column, `field${i + 1}`, stringFieldCompareClosure(i)));
+        var th = createColumnHeader(column, `field${i + 1}`, stringFieldCompareClosure(i));
+        th.firstChild.nodeValue = fieldLabel(column);
+        tr.appendChild(th);
       }
     });
   }
@@ -758,7 +767,13 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           }
         } else if (column === "References") {
           td = document.createElement("TD");
-          td.innerHTML = highlightFilter(references.map(r => r[0]).join(", "));
+          var refsHtml = references.map(r => dnpFootprints.has(r[1])
+            ? '<span class="dnp-ref">' + highlightFilter(r[0]) + '</span>'
+            : highlightFilter(r[0])).join(", ");
+          if (references.some(r => dnpFootprints.has(r[1]))) {
+            refsHtml = '<span class="dnp-badge">DNP</span>' + refsHtml;
+          }
+          td.innerHTML = refsHtml;
           tr.appendChild(td);
         } else if (column === "Quantity" && settings.bommode == "grouped") {
           // Quantity
@@ -786,6 +801,9 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           tr.appendChild(td);
         }
       });
+      if (references.every(r => dnpFootprints.has(r[1]))) {
+        tr.classList.add("dnp");
+      }
     }
     bom.appendChild(tr);
     var handler = createRowHighlightHandler(tr.id, references, netname);
@@ -1239,8 +1257,9 @@ function populateMarkWhenCheckedOptions() {
 }
 
 function updateCheckboxStats(checkbox) {
-  var checked = getStoredCheckboxRefs(checkbox).size;
-  var total = pcbdata.footprints.length - pcbdata.bom.skipped.length;
+  var checked = [...getStoredCheckboxRefs(checkbox)].filter(i => !dnpFootprints.has(i)).length;
+  var total = pcbdata.footprints.filter(
+    (_, i) => !pcbdata.bom.skipped.includes(i) && !dnpFootprints.has(i)).length;
   var percent = checked * 100.0 / total;
   var td = document.getElementById("checkbox-stats-" + checkbox);
   td.firstChild.style.width = percent + "%";

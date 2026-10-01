@@ -61,17 +61,17 @@ class PcbnewParser(EcadParser):
             props = f.GetFieldsShownText()
         if "dnp" in props and props["dnp"] == "":
             del props["dnp"]
-            props["kicad_dnp"] = "DNP"
+            props["kicad_dnp"] = "Do Not Populate"
         if hasattr(f, "IsDNP"):
             if f.IsDNP():
-                props["kicad_dnp"] = "DNP"
+                props["kicad_dnp"] = "Do Not Populate"
         if hasattr(f, 'GetVariant'):
             variant = f.GetVariant(self.config.kicad_variant)
             if variant:
                 var_fields = variant.GetFields()
                 for k in var_fields.keys():
                     props[str(k)] = str(f.GetFieldShownText(str(k)))
-                props["kicad_dnp"] = "DNP" if variant.GetDNP() else ""
+                props["kicad_dnp"] = "Do Not Populate" if variant.GetDNP() else ""
 
         return props
 

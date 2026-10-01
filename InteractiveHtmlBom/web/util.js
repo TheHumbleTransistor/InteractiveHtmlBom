@@ -3,6 +3,11 @@
 var storagePrefix = 'KiCad_HTML_BOM__' + pcbdata.metadata.title + '__' +
   pcbdata.metadata.revision + '__#';
 var storage;
+var dnpFootprints = new Set(pcbdata.bom.dnp || []);
+
+function fieldLabel(field) {
+  return field == "kicad_dnp" ? "Do Not Populate" : field;
+}
 
 function initStorage(key) {
   try {
@@ -86,8 +91,10 @@ function saveBomTable(output) {
           if (node.checked) {
             val += '✓';
           }
-        } else if ((node.nodeName == "MARK") || (node.nodeName == "A")) {
-          val += node.firstChild.nodeValue;
+        } else if (node.classList && node.classList.contains("dnp-badge")) {
+          continue;
+        } else if (node.nodeType == Node.ELEMENT_NODE) {
+          val += node.textContent;
         } else {
           val += node.nodeValue;
         }

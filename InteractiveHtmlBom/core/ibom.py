@@ -155,6 +155,7 @@ def generate_bom(pcb_footprints, config):
                 if field in group_by:
                     group_key.append(f.extra_fields.get(field_key, ''))
 
+        group_key.append(is_dnp(f, config))
         index_to_fields[i] = fields
         refs = part_groups.setdefault(tuple(group_key), [])
         refs.append((f.ref, i))

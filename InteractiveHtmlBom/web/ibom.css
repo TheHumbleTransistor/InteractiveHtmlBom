@@ -19,6 +19,7 @@
   --track-color-highlight: #D04040;
   --zone-color: #def5f1;
   --zone-color-highlight: #d0404080;
+  --dnp-color: #e00000;
 }
 
 html,
@@ -218,6 +219,39 @@ canvas:active {
 
 .dark .bom th {
   background-color: #3b4749;
+}
+
+.bom tr.dnp:nth-child(n) {
+  background-color: #fdd;
+  color: #999;
+}
+
+.dark .bom tr.dnp:nth-child(n) {
+  background-color: #5c2a2a;
+  color: #a08c8c;
+}
+
+.bom tr.dnp td:first-child {
+  box-shadow: inset 6px 0 #e00000;
+}
+
+.dnp-badge {
+  background-color: #e00000;
+  color: white;
+  font-weight: bold;
+  padding: 0 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
+
+.dnp-ref {
+  color: #e00000;
+  font-weight: bold;
+  text-decoration: line-through;
+}
+
+.dark .dnp-ref {
+  color: #ff6b6b;
 }
 
 .bom tr.highlighted:nth-child(n) {
