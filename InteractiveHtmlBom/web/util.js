@@ -5,8 +5,10 @@ var storagePrefix = 'KiCad_HTML_BOM__' + pcbdata.metadata.title + '__' +
 var storage;
 var dnpFootprints = new Set(pcbdata.bom.dnp || []);
 
+const DNP_TOOLTIP = "This line item is intended NOT to be populated.  DNP = Do Not Populate";
+
 function fieldLabel(field) {
-  return field == "kicad_dnp" ? "Do Not Populate" : field;
+  return field == "kicad_dnp" ? "DNP" : field;
 }
 
 function initStorage(key) {
@@ -91,8 +93,6 @@ function saveBomTable(output) {
           if (node.checked) {
             val += '✓';
           }
-        } else if (node.classList && node.classList.contains("dnp-badge")) {
-          continue;
         } else if (node.nodeType == Node.ELEMENT_NODE) {
           val += node.textContent;
         } else {
