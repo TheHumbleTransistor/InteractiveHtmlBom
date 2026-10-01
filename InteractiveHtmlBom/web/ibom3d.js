@@ -13,7 +13,7 @@ import { GLTFLoader } from 'three-gltfloader';
 import { OrbitControls } from 'three-orbitcontrols';
 import { RoomEnvironment } from 'three-roomenv';
 
-const HIGHLIGHT = 0xff3b30;
+const HIGHLIGHT = 0xff00ff;
 const HIGHLIGHT_INTENSITY = 0.6;
 // An unplaced part, shown only while its BOM row is selected. At 0.5 opacity with the full
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
