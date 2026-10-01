@@ -356,7 +356,7 @@ CI runs the same script on every push and pull request and keeps the result as t
 
 ### Mounting type
 
-A **Mounting Type** column, visible by default, shows **SMT** (grey rounded square, a pad) or
+A **Mounting Type** column, visible by default, shows **SMT** (grey rounded rectangle, a pad) or
 **TH** (grey ring, an annular ring) so assembly can run as
 an SMT pass followed by a through-hole pass. Sort on it to group the passes, or type `smt` / `th`
 in the filter box. Hovering the header or a value explains the acronym.

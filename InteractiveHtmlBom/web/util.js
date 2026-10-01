@@ -694,7 +694,7 @@ const MOUNT_LABELS = {
   th: ["TH", "Through-hole: placed in the through-hole pass, after SMT"],
 };
 const MOUNT_ICONS = {
-  smd: '<svg class="mount-icon" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1.8"/></svg>',
+  smd: '<svg class="mount-icon" viewBox="0 0 10 10"><rect x="0.5" y="1.75" width="9" height="6.5" rx="1"/></svg>',
   th: '<svg class="mount-icon" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.2" fill="none" stroke-width="2"/></svg>',
 };
 
