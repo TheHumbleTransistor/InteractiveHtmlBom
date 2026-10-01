@@ -152,11 +152,11 @@ board and holds the camera. This fork adds two ways out:
   whether it lands on a part or on bare board. OrbitControls binds no `dblclick` of its own and a
   double-click involves no drag, so the camera is untouched.
 - **Clicking the selected row again** — click mode only. In hover mode (the default, when
-  *Highlight row on click* is off) that same handler is bound to `onmousemove` and fires on every
+  *Highlight row only on click* is off) that same handler is bound to `onmousemove` and fires on every
   movement within the row, so toggling there would strobe.
 
 Worth knowing: with the default hover mode the selection follows the mouse across the table and
-never clears on its own. Turning on *Highlight row on click* makes selection deliberate.
+never clears on its own. Turning on *Highlight row only on click* makes selection deliberate.
 
 ### 3D: Board mask
 
