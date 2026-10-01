@@ -284,6 +284,9 @@ Footprints are a collection of pads, drawings and some metadata.
 ```js
 {
   "ref": reference,
+  // Optional. "smd" or "th" from the ECAD footprint type; if absent, the
+  // footprint counts as "th" when any of its pads is through-hole.
+  "mount": mount,
   "center": [x, y],
   "bbox": {
     // Position of the rotation center of the bounding box.

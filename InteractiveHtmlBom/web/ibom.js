@@ -370,6 +370,10 @@ function entryMatches(entry) {
       }
     }
   }
+  if (!settings.hiddenColumns.includes(MOUNT_COLUMN) &&
+      mountLabels(entry).some(l => l[0].toLowerCase().indexOf(filter) >= 0)) {
+    return true;
+  }
   // check fields
   for (var i in config.fields) {
     var f = config.fields[i];
@@ -671,6 +675,13 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
       } else if (column === "Footprint") {
         tr.appendChild(createColumnHeader(
           "Footprint", "footprint", stringFieldCompareClosure(footprintIndex)));
+      } else if (column === MOUNT_COLUMN) {
+        var th = createColumnHeader(MOUNT_COLUMN, "mount-col", (a, b) => {
+          var ka = mountLabels(a).map(l => l[0]).join(), kb = mountLabels(b).map(l => l[0]).join();
+          return ka.localeCompare(kb);
+        });
+        th.title = MOUNT_HEADER_TOOLTIP;
+        tr.appendChild(th);
       } else if (column === "Quantity" && settings.bommode == "grouped") {
         tr.appendChild(createColumnHeader("Quantity", "quantity", (a, b) => {
           return a.length - b.length;
@@ -781,6 +792,11 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
             refsHtml = '<span class="dnp-badge">DNP</span>' + refsHtml;
           }
           td.innerHTML = refsHtml;
+          tr.appendChild(td);
+        } else if (column === MOUNT_COLUMN) {
+          td = document.createElement("TD");
+          td.innerHTML = mountLabels(references).map(([label, tip, icon]) =>
+            `<span class="mount" title="${tip}">${icon}${highlightFilter(label)}</span>`).join(", ");
           tr.appendChild(td);
         } else if (column === "Quantity" && settings.bommode == "grouped") {
           // Quantity

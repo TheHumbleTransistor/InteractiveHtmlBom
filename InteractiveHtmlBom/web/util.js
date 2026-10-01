@@ -599,7 +599,7 @@ function initDefaults() {
   initBooleanSetting("placed3donly", true, "placed3dOnlyCheckbox", setPlaced3dOnly);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
-  var fields = ["checkboxes", "References"].concat(config.fields).concat(["Quantity"]);
+  var fields = ["checkboxes", "References"].concat(config.fields).concat([MOUNT_COLUMN, "Quantity"]);
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
     // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
@@ -686,3 +686,26 @@ const EventHandler = {
   }
 }
 EventHandler.init();
+
+const MOUNT_COLUMN = "Mounting Type";
+const MOUNT_HEADER_TOOLTIP = "SMT = Surface Mount, TH = Through Hole";
+const MOUNT_LABELS = {
+  smd: ["SMT", "Surface Mount"],
+  th: ["TH", "Through Hole"],
+};
+const MOUNT_ICONS = {
+  smd: '<svg class="mount-icon" viewBox="0 0 10 10"><rect x="0.5" y="1.75" width="9" height="6.5" rx="1"/></svg>',
+  th: '<svg class="mount-icon" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.2" fill="none" stroke-width="2"/></svg>',
+};
+
+/* The KiCad footprint type when the board sets one, else any through-hole pad means TH. */
+function footprintMount(i) {
+  var fp = pcbdata.footprints[i];
+  if (fp.mount) return fp.mount;
+  return fp.pads.some(p => p.type == "th") ? "th" : "smd";
+}
+
+function mountLabels(references) {
+  return [...new Set(references.map(r => footprintMount(r[1])))].sort()
+    .map(m => MOUNT_LABELS[m].concat([MOUNT_ICONS[m]]));
+}

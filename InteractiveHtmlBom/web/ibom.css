@@ -946,3 +946,21 @@ a {
   padding: 1em;
   font-family: monospace;
 }
+
+.bom .mount-col {
+  width: 80px;
+}
+
+.bom .mount {
+  cursor: help;
+  white-space: nowrap;
+}
+
+.bom .mount-icon {
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 4px;
+  vertical-align: -0.1em;
+  fill: #888;
+  stroke: #888;
+}
