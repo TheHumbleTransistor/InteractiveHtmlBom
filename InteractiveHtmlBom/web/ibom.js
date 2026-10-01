@@ -795,8 +795,8 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           tr.appendChild(td);
         } else if (column === MOUNT_COLUMN) {
           td = document.createElement("TD");
-          td.innerHTML = mountLabels(references).map(
-            ([label, tip]) => `<span class="mount" title="${tip}">${highlightFilter(label)}</span>`).join(", ");
+          td.innerHTML = mountLabels(references).map(([label, tip, icon]) =>
+            `<span class="mount" title="${tip}">${icon}${highlightFilter(label)}</span>`).join(", ");
           tr.appendChild(td);
         } else if (column === "Quantity" && settings.bommode == "grouped") {
           // Quantity

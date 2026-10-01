@@ -693,6 +693,10 @@ const MOUNT_LABELS = {
   smd: ["SMT", "Surface-mount: placed in the SMT pass"],
   th: ["TH", "Through-hole: placed in the through-hole pass, after SMT"],
 };
+const MOUNT_ICONS = {
+  smd: '<svg class="mount-icon" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" rx="1.8"/></svg>',
+  th: '<svg class="mount-icon" viewBox="0 0 10 10"><circle cx="5" cy="5" r="3.2" fill="none" stroke-width="2"/></svg>',
+};
 
 /* The KiCad footprint type when the board sets one, else any through-hole pad means TH. */
 function footprintMount(i) {
@@ -702,5 +706,6 @@ function footprintMount(i) {
 }
 
 function mountLabels(references) {
-  return [...new Set(references.map(r => footprintMount(r[1])))].sort().map(m => MOUNT_LABELS[m]);
+  return [...new Set(references.map(r => footprintMount(r[1])))].sort()
+    .map(m => MOUNT_LABELS[m].concat([MOUNT_ICONS[m]]));
 }
