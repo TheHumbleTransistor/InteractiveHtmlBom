@@ -15,7 +15,7 @@ board="$here/demo.kicad_pcb"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-kicad-cli pcb export glb --subst-models --include-pads --include-silkscreen \
+kicad-cli pcb export glb --subst-models --include-tracks --include-pads --include-silkscreen \
   --include-soldermask -o "$tmp/demo.glb" "$board"
 
 INTERACTIVE_HTML_BOM_NO_DISPLAY=1 PYTHONPATH="$repo" "$python" \
