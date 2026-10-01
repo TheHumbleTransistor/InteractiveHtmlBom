@@ -191,8 +191,9 @@ A **3D: only show placed parts** checkbox in the settings menu, on by default. W
 only the parts ticked in the BOM's *Placed* column -- so the board fills in as you assemble it,
 and at a glance you see what the half-built board in front of you should look like.
 
-**DNP parts are hidden in 3D until they are ticked Placed**, whether or not this is on, and
-selecting one does not reveal it. A DNP part that has been ticked Placed is shown tinted red. A
+**DNP parts are hidden in 3D until they are ticked Placed**, whether or not this is on.
+Selecting one reveals it with a red highlight instead of the usual green. A DNP part that has
+been ticked Placed is shown tinted red. A
 part counts as DNP if `--dnp-field` marks it or KiCad's own DNP flag (`kicad_dnp`) is set.
 
 **Land patterns stay visible, and selecting an unplaced row reveals that part** — fully opaque,
@@ -239,7 +240,7 @@ DNP parts are marked so an assembler can't miss them:
   selected.
 - **2D and 3D:** a red cross over each DNP footprint, shown while the **DNP markers** setting is
   on (the default). In 3D the cross sits on the bare land pattern;
-  the part only appears, tinted red, once it is ticked Placed.
+  the part appears highlighted red while selected, and tinted red once it is ticked Placed.
 - **Checkbox progress** (e.g. *Placed 0/140*) leaves DNP parts out of the total.
 - **Grouping** always puts DNP parts in their own row, whatever `--group-fields` says.
 - **Ticking Placed** (or whichever column `--mark-when-checked` names) on a DNP row asks for

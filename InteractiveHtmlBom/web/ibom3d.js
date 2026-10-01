@@ -14,6 +14,7 @@ import { OrbitControls } from 'three-orbitcontrols';
 import { RoomEnvironment } from 'three-roomenv';
 
 const HIGHLIGHT = 0x22ff22;
+const DNP_HIGHLIGHT = 0xff2020;
 const HIGHLIGHT_INTENSITY = 0.6;
 // An unplaced part, shown only while its BOM row is selected. At 0.5 opacity with the full
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
@@ -647,11 +648,10 @@ function highlight3D(refs, noFrame) {
   lastRefs = refs;
   clearHighlight();
   const box = new THREE.Box3();
-  var hit = 0, dnp = 0, missing = 0;
+  var hit = 0, missing = 0;
   for (const ref of refs) {
     const nodes = nodesFor(ref);
-    if (isDnp(ref) && !isPlaced(ref)) dnp++;
-    else if (!nodes.length) missing++;
+    if (!nodes.length) missing++;
     if (!nodes.length) continue;       // no 3D model for this part -- legitimate, skip it
     hit++;
     // With the placed filter on, an unplaced part is hidden. Selecting it reveals it -- fully
@@ -663,7 +663,8 @@ function highlight3D(refs, noFrame) {
     // stops the part's own faces occluding EACH OTHER, so every back face and interior surface
     // showed through the front. No opacity value fixes that; the geometry is self-overlapping and
     // unsorted. Opaque is both correct and simpler.
-    const reveal = placedOnly && !isPlaced(ref) && !isDnp(ref);
+    const dnp = isDnp(ref);
+    const reveal = !isPlaced(ref) && (placedOnly || dnp);
     for (const node of nodes) {
       savedState.set(node, { material: null, visible: node.visible });
       if (reveal) node.visible = true;
@@ -672,9 +673,9 @@ function highlight3D(refs, noFrame) {
         savedState.set(o, { material: o.material, visible: o.visible });
         const m = o.material.clone();
         // Ramp the emissive with the dim, or the selection darkens along with everything else and
-        // reads as a muddy dark part with a red tinge rather than a clean red one.
+        // reads as a muddy dark part with a tinge rather than a clean highlight.
         const d = dimFraction();
-        m.emissive = new THREE.Color(HIGHLIGHT);
+        m.emissive = new THREE.Color(dnp ? DNP_HIGHLIGHT : HIGHLIGHT);
         m.emissiveIntensity = THREE.MathUtils.lerp(HIGHLIGHT_INTENSITY, HIGHLIGHT_EMISSIVE_DIM, d);
         o.material = m;
       });
@@ -690,10 +691,7 @@ function highlight3D(refs, noFrame) {
   render();
   const note = document.getElementById("board3d-missing");
   if (note) {
-    const notes = [];
-    if (dnp) notes.push(dnp + " selected part(s) are DNP and not placed, so not shown");
-    if (missing) notes.push(missing + " selected part(s) have no 3D model");
-    note.textContent = notes.join("; ");
+    note.textContent = missing ? missing + " selected part(s) have no 3D model" : "";
   }
 }
 
