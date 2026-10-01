@@ -511,7 +511,9 @@ function applyDnpMarkers() {
 /* A red cross over each DNP footprint's bounding box, on the board face it mounts to. */
 function buildDnpCrosses() {
   const group = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ color: DNP_COLOR });
+  // Out-bias the artwork's -1 offset (biasArtwork), or the mask draws over the cross when zoomed out.
+  const mat = new THREE.MeshBasicMaterial({
+    color: DNP_COLOR, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   for (const i of (pcbdata.bom.dnp || [])) {
     const fp = pcbdata.footprints[i], bb = fp.bbox;
     const a = THREE.MathUtils.degToRad(-bb.angle), c = Math.cos(a), s = Math.sin(a);
