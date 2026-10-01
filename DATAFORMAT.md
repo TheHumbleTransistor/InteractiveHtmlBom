@@ -105,7 +105,9 @@ pcbdata = {
     "F":  [bomrow1, bomrow2, ...],
     "B":  [bomrow1, bomrow2, ...],
     // numeric IDs of DNP components that are not in BOM
-    "skipped": [id1, id2, ...]
+    "skipped": [id1, id2, ...],
+    // numeric IDs of all DNP components, whether or not they are in BOM
+    "dnp": [id1, id2, ...],
     // Fields map is keyed on component ID with values being field data.
     // It's order corresponds to order of fields data in config struct.
     "fields" {

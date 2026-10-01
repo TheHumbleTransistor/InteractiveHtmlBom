@@ -416,6 +416,14 @@ function isPlaced(ref) {
   return isPlaced._cache.has(ref);
 }
 
+var dnpRefs = null;
+function isDnp(ref) {
+  if (!dnpRefs) {
+    dnpRefs = new Set((pcbdata.bom.dnp || []).map(i => pcbdata.footprints[i].ref));
+  }
+  return dnpRefs.has(ref);
+}
+
 function applyPlacedFilter() {
   if (!ready) return;
   // Drop the highlight first: savedState records visibility as it was when the highlight was
@@ -423,7 +431,7 @@ function applyPlacedFilter() {
   const active = lastRefs;
   clearHighlight();
   for (const fp of pcbdata.footprints) {
-    const show = !placedOnly || isPlaced(fp.ref);
+    const show = !isDnp(fp.ref) && (!placedOnly || isPlaced(fp.ref));
     // Hide the whole node. Pads and silkscreen are board-level, so they stay put.
     for (const node of nodesFor(fp.ref)) node.visible = show;
   }
@@ -551,9 +559,11 @@ function highlight3D(refs, noFrame) {
   lastRefs = refs;
   clearHighlight();
   const box = new THREE.Box3();
-  var hit = 0;
+  var hit = 0, dnp = 0, missing = 0;
   for (const ref of refs) {
     const nodes = nodesFor(ref);
+    if (isDnp(ref)) dnp++;
+    else if (!nodes.length) missing++;
     if (!nodes.length) continue;       // no 3D model for this part -- legitimate, skip it
     hit++;
     // With the placed filter on, an unplaced part is hidden. Selecting it reveals it -- fully
@@ -565,7 +575,7 @@ function highlight3D(refs, noFrame) {
     // stops the part's own faces occluding EACH OTHER, so every back face and interior surface
     // showed through the front. No opacity value fixes that; the geometry is self-overlapping and
     // unsorted. Opaque is both correct and simpler.
-    const reveal = placedOnly && !isPlaced(ref);
+    const reveal = placedOnly && !isPlaced(ref) && !isDnp(ref);
     for (const node of nodes) {
       savedState.set(node, { material: null, visible: node.visible });
       if (reveal) node.visible = true;
@@ -592,8 +602,10 @@ function highlight3D(refs, noFrame) {
   render();
   const note = document.getElementById("board3d-missing");
   if (note) {
-    const missing = refs.length - hit;
-    note.textContent = missing ? missing + " selected part(s) have no 3D model" : "";
+    const notes = [];
+    if (dnp) notes.push(dnp + " selected part(s) are DNP and not shown");
+    if (missing) notes.push(missing + " selected part(s) have no 3D model");
+    note.textContent = notes.join("; ");
   }
 }
 

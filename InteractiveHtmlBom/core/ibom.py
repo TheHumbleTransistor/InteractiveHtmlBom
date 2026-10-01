@@ -89,6 +89,13 @@ def skip_component(m, config):
     return False
 
 
+def is_dnp(m, config):
+    # type: (Component, Config) -> bool
+    if config.dnp_field and m.extra_fields.get(config.dnp_field):
+        return True
+    return bool(m.extra_fields.get('kicad_dnp'))
+
+
 def generate_bom(pcb_footprints, config):
     # type: (list, Config) -> dict
     """
@@ -196,6 +203,7 @@ def generate_bom(pcb_footprints, config):
     result = {
         'both': bom_table,
         'skipped': skipped_components,
+        'dnp': [i for i, f in enumerate(pcb_footprints) if is_dnp(f, config)],
         'fields': index_to_fields
     }
 
