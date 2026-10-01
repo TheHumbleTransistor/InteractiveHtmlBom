@@ -599,7 +599,10 @@ function initDefaults() {
   initBooleanSetting("placed3donly", true, "placed3dOnlyCheckbox", setPlaced3dOnly);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
-  var fields = ["checkboxes", "References"].concat(config.fields).concat([MOUNT_COLUMN, "Quantity"]);
+  var anyDnp = pcbdata.bom.both.some(row => row.some(r => dnpFootprints.has(r[1])));
+  var fields = ["checkboxes", "References"]
+    .concat(config.fields.filter(f => f != "kicad_dnp" || anyDnp))
+    .concat([MOUNT_COLUMN, "Quantity"]);
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
     // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
