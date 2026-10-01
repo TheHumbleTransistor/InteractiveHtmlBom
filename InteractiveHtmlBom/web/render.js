@@ -411,7 +411,10 @@ function drawFootprints(canvas, layer, scalefactor, highlight) {
     var h = highlightedFootprints.includes(i);
     var d = markedFootprints.has(i);
     if (highlight) {
-      if(h && d) {
+      if (h && dnp) {
+        colors.pad = style.getPropertyValue('--pad-color-highlight-dnp');
+        colors.outline = style.getPropertyValue('--pin1-outline-color-highlight');
+      } else if(h && d) {
         colors.pad = style.getPropertyValue('--pad-color-highlight-both');
         colors.outline = style.getPropertyValue('--pin1-outline-color-highlight-both');
       } else if (h) {
