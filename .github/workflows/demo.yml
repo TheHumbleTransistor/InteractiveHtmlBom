@@ -22,16 +22,16 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build demo
         run: demo/build.sh "$GITHUB_WORKSPACE/ibom-demo.html"
 
       - name: Upload demo
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: ibom-demo
           path: ibom-demo.html
+          archive: false
           retention-days: 30
 
   release:
@@ -44,9 +44,9 @@ jobs:
 
     steps:
       - name: Download demo
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          name: ibom-demo
+          name: ibom-demo.html
 
       - name: Upload to release
         env:
