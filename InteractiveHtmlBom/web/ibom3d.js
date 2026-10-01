@@ -473,6 +473,15 @@ function setPlacedOnly(on) {
   applyPlacedFilter();
 }
 
+var dnpGroup = null;
+
+/* `settings` is read lazily for the same reason as applySilkscreen(). */
+function applyDnpMarkers() {
+  if (dnpGroup) {
+    dnpGroup.visible = (typeof settings === "undefined") || settings.renderDnpMarkers !== false;
+  }
+}
+
 /* A red cross over each DNP footprint's bounding box, on the board face it mounts to. */
 function buildDnpCrosses() {
   const group = new THREE.Group();
@@ -737,7 +746,9 @@ function init3D(glbDataUri) {
         + (xform.med * 1000).toFixed(3) + ' mm, ' + xform.outliers + ' outliers');
       pin1Group = new THREE.Group();
       scene.add(pin1Group);
-      scene.add(buildDnpCrosses());
+      dnpGroup = buildDnpCrosses();
+      scene.add(dnpGroup);
+      applyDnpMarkers();
     } else {
       console.warn('ibom3d: could not fit board->model transform; pin 1 markers disabled');
     }
@@ -771,6 +782,7 @@ window.highlight3D = highlight3D;
 window.resize3D = resize3D;
 window.setPlacedOnly = setPlacedOnly;
 window.setSilkscreen3d = () => { applySilkscreen(); render(); };
+window.setDnpMarkers3d = () => { applyDnpMarkers(); render(); };
 window.applyDim3d = () => { highlight3D(lastRefs, true); };
 window.updatePin1 = () => { updatePin1(lastRefs); render(); };
 window.has3D = true;
