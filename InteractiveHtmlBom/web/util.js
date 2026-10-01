@@ -725,3 +725,30 @@ function sideLabels(references) {
     .filter(([layer]) => references.some(r => pcbdata.footprints[r[1]].layer == layer))
     .map(([layer, label]) => [label, layer == "F" ? "0" : "1"]);
 }
+
+/* Clicking a BOM badge shows its tooltip text: hover-only `title` tooltips never appear on touch. */
+const CLICK_TIP_SELECTOR = ".warn-badge, .dnp-badge, .dnp-ref, .mount";
+
+function hideClickTip() {
+  var tip = document.getElementById("click-tip");
+  if (tip) tip.remove();
+}
+
+document.addEventListener("click", (e) => {
+  var el = e.target.closest(CLICK_TIP_SELECTOR);
+  if (!el || !el.title) {
+    hideClickTip();
+    return;
+  }
+  var tip = document.getElementById("click-tip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "click-tip";
+    document.body.appendChild(tip);
+  }
+  tip.textContent = el.title;
+  var r = el.getBoundingClientRect();
+  tip.style.left = Math.max(4, Math.min(r.left, window.innerWidth - tip.offsetWidth - 4)) + "px";
+  tip.style.top = (r.bottom + 4) + "px";
+});
+document.addEventListener("scroll", hideClickTip, true);

@@ -234,7 +234,8 @@ the node before designing a rule around it.**
 
 ### DNP parts
 
-DNP parts are marked so an assembler can't miss them:
+DNP parts are marked so an assembler can't miss them. Every badge below explains itself on hover,
+and clicking it shows the same text, which also works on touchscreens:
 
 - **BOM:** DNP refs are red and struck through, and a row that is entirely DNP is tinted red with lightened text and a red stripe that stays when the row is
   selected.
