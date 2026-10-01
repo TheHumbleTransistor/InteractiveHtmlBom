@@ -73,12 +73,15 @@ through component edges at grazing angles.
 ### Pin 1
 
 Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`) -- no new
-control. Pin-1 pads get a small dot, coloured from the 2D view's own `--pin1-outline-color` CSS
-variable so it matches the canvas and follows dark mode for free.
+control. Each pin-1 pad gets a map-pin marker: an upside-down teardrop with a "1" on it, tip on the
+pad, coloured from the 2D view's own `--pin1-outline-color` CSS variable so it matches the canvas
+and follows dark mode for free. It always faces the camera and stays the same size on screen. It is
+drawn on top of the parts, since pin 1 usually sits under the part's body, and is shown only while
+its side of the board faces the camera, so the board itself never hides it.
 
-The dot sits on the **board face**, not on the footprint node's origin: the origin is skewed by
-any z offset the 3D model carries (`J5`'s is 3.85 mm, which left its dot hovering in mid-air),
-and the land pattern is where the mark belongs anyway. It is also drawn for parts the placed
+The marker's tip sits on the **board face**, not on the footprint node's origin: the origin is
+skewed by any z offset the 3D model carries (`J5`'s is 3.85 mm, which left its mark hovering in
+mid-air), and the land pattern is where the mark belongs anyway. It is also drawn for parts the placed
 filter is hiding -- an unfitted part is exactly when you need to know which end pin 1 is.
 
 This needs a board-millimetres to model-units mapping, which is the one place the refdes trick
@@ -87,7 +90,7 @@ assumed: measured on KiCad 10 the mapping is the identity (board x,y in mm to mo
 metres, no offset, no sign flip), and the fit confirms it at a 0.000 mm median residual over 142
 footprints. Judge such a fit on the MEDIAN residual, never the worst -- a footprint whose 3D
 model carries its own `(offset ...)` is a legitimate outlier, and there were 8 of them. If the
-fit fails the dots are disabled with a console warning rather than drawn in the wrong place.
+fit fails the markers are disabled with a console warning rather than drawn in the wrong place.
 
 ### Silkscreen
 
@@ -189,9 +192,9 @@ The selected part's *diffuse* darkens along with everything else, so its emissiv
 dimming (`HIGHLIGHT_EMISSIVE_DIM`) or it reads as a muddy dark part with a red tinge rather than a
 clean red one. `DIM_FACTOR` controls how far down everything else goes.
 
-Only active while something is selected — deselecting restores the lights, verified. Pin-1 dots use
-`MeshBasicMaterial` and are unlit, so they stay bright on the dimmed board; deliberate, they are a
-marker rather than scenery.
+Only active while something is selected — deselecting restores the lights, verified. Pin-1 markers are
+unlit sprites, so they stay bright on the dimmed board; deliberate, they are a marker rather than
+scenery.
 
 ### Only show placed parts
 

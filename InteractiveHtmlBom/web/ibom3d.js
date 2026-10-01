@@ -20,11 +20,12 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-// Follow the 2D view's own CSS variable rather than hardcoding, so the dot matches the canvas
+// Follow the 2D view's own CSS variable rather than hardcoding, so the marker matches the canvas
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
-const PIN1_COLOR_FALLBACK = 0xffb629;
-const PIN1_RADIUS_MM = 0.55;
+const PIN1_COLOR_FALLBACK = '#ffb629';
+// Marker height as a fraction of the vertical field of view's tangent: ~40 px on a 900 px pane.
+const PIN1_MARKER_SIZE = 0.028;
 const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
@@ -398,7 +399,7 @@ function boardFrame() {
  *
  * Measured on KiCad 10 it is the identity: board x,y in mm maps to model x,z in metres, no
  * offset and no sign flip. Solving it anyway costs ~15 lines and means a future KiCad that
- * changes the convention degrades to "no pin-1 dots" instead of dots in the wrong place.
+ * changes the convention degrades to "no pin-1 markers" instead of markers in the wrong place.
  *
  * Judge the fit on the MEDIAN residual, not the worst. A footprint whose 3D model carries its
  * own `(offset ...)` -- J5 is 7 mm out on this project's board -- is a legitimate outlier, so a
@@ -535,34 +536,67 @@ function buildDnpCrosses() {
   return group;
 }
 
-/* Pin-1 dots, honouring iBOM's existing highlight_pin1 setting -- no new control. */
+/* Pin-1 markers, honouring iBOM's existing highlight_pin1 setting -- no new control. */
+/* A map-pin marker: an upside-down teardrop with a "1", drawn on top of everything and always
+ * facing the camera. Cached per colour, since dark mode changes it. */
+var pin1Materials = {};
+function pin1Material(color) {
+  if (pin1Materials[color]) return pin1Materials[color];
+  const w = 96, h = 128, r = 40, cx = w / 2, cy = r + 4;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const a = Math.asin(r / (h - 4 - cy));     // where the tangents from the tip meet the circle
+  ctx.beginPath();
+  ctx.moveTo(cx, h - 4);
+  ctx.arc(cx, cy, r, Math.PI / 2 + a, Math.PI / 2 - a);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.stroke();
+  ctx.fillStyle = 'black';
+  ctx.font = 'bold 56px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', cx, cy + 3);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  pin1Materials[color] = new THREE.SpriteMaterial({
+    map: tex, sizeAttenuation: false, depthTest: false, depthWrite: false, toneMapped: false });
+  return pin1Materials[color];
+}
+
 function updatePin1(refs) {
   if (!pin1Group) return;
   pin1Group.clear();
   const mode = settings.highlightpin1;
   if (!xform || mode == "none") return;
   const wanted = (mode == "all") ? null : new Set(refs || []);
-  const r = PIN1_RADIUS_MM * 0.001;
-  const geom = new THREE.SphereGeometry(r, 12, 8);
   const css = getComputedStyle(document.documentElement)
     .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const mat = new THREE.MeshBasicMaterial(
-    { color: css ? new THREE.Color(css) : new THREE.Color(PIN1_COLOR_FALLBACK) });
+  const mat = pin1Material(css || PIN1_COLOR_FALLBACK);
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
-    // Deliberately NOT skipped when the placed filter hides the part: the dot marks the LAND
+    // Deliberately NOT skipped when the placed filter hides the part: the marker marks the LAND
     // PATTERN, which is still on screen, and an unfitted part is exactly when you need to know
     // which end pin 1 is.
-    // Sit the dot on the BOARD FACE, not on the footprint node's origin. The origin is skewed
-    // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its dot hovering in
-    // mid-air -- and the dot belongs on the land pattern anyway, where it stays visible once the
+    // Sit the marker on the BOARD FACE, not on the footprint node's origin. The origin is skewed
+    // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its mark hovering in
+    // mid-air -- and the marker belongs on the land pattern anyway, where it stays visible once the
     // part itself is hidden.
     const y = (fp.layer === 'B') ? boardBottomY : boardTopY;
     for (const pad of (fp.pads || [])) {
       if (!pad.pin1) continue;
-      const dot = new THREE.Mesh(geom, mat);
-      dot.position.copy(toModel(pad.pos, y + (fp.layer === 'B' ? -r : r)));
-      pin1Group.add(dot);
+      const marker = new THREE.Sprite(mat);
+      marker.center.set(0.5, 0);             // the teardrop's tip sits on the pad
+      marker.scale.set(PIN1_MARKER_SIZE * 0.75, PIN1_MARKER_SIZE, 1);
+      marker.position.copy(toModel(pad.pos, y));
+      marker.renderOrder = 10;
+      marker.userData.back = fp.layer === 'B';
+      pin1Group.add(marker);
     }
   }
 }
@@ -608,8 +642,8 @@ function applyDim() {
   const f = THREE.MathUtils.lerp(1, DIM_FLOOR, dimFraction());
   scene.environmentIntensity = ENV_INTENSITY * f;
   if (keyLight) keyLight.intensity = KEY_INTENSITY * f;
-  // Pin-1 dots are MeshBasicMaterial and therefore unlit, so they stay bright on the dimmed
-  // board. Deliberate -- they are a marker, not scenery.
+  // Pin-1 markers are unlit sprites, so they stay bright on the dimmed board. Deliberate -- they
+  // are a marker, not scenery.
 }
 
 /* The board's top faces +Y, so the camera sees the top while it is above the board's plane. */
@@ -691,7 +725,10 @@ function frame(box, immediate, t) {
 
 function render() {
   if (!ready) return;
-  if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (viewingTop() ? 1 : -1);
+  const top = viewingTop();
+  if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (top ? 1 : -1);
+  // Markers ignore depth so the part body can't hide them; the board must not either.
+  if (pin1Group) for (const m of pin1Group.children) m.visible = m.userData.back !== top;
   setDepthRange(camera.position.distanceTo(controls.target));
   renderer.render(scene, camera);
 }
