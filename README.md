@@ -140,6 +140,13 @@ Two things worth knowing if you touch it:
 - `frame()` reads `settings.zoom3d` on every call rather than caching it. `initDefaults()` restores
   it at `window.onload` while the GLB loads asynchronously, so a mirrored copy is a race.
 
+### Flip to the selection
+
+Selecting parts that are all on the side facing away from the camera flips the view to the other
+side: the camera is mirrored through the board's plane, keeping its distance and heading. If any
+selected part is on the visible side, the view stays put. The key light follows the camera to
+whichever side it is on, so the underside is lit like the top.
+
 ### Deselecting
 
 Upstream iBOM has no way to clear a selection: `clearHighlightedFootprints()` is only reachable by

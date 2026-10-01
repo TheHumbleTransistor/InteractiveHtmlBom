@@ -612,6 +612,22 @@ function applyDim() {
   // board. Deliberate -- they are a marker, not scenery.
 }
 
+/* The board's top faces +Y, so the camera sees the top while it is above the board's plane. */
+function viewingTop() {
+  return camera.position.y >= controls.target.y;
+}
+
+/* If every selected part with a model is on the side facing away, mirror the camera through the
+ * board's plane: same distance and heading, seen from the other side. */
+function flipToSelection(refs) {
+  const layers = new Set(refs.filter(r => nodesFor(r).length)
+    .map(r => (pcbdata.footprints.find(f => f.ref === r) || {}).layer));
+  const visible = viewingTop() ? 'F' : 'B';
+  if (!layers.size || layers.has(visible)) return;
+  camera.position.y = 2 * controls.target.y - camera.position.y;
+  controls.update();
+}
+
 function frame(box, immediate, t) {
   if (t === undefined) t = zoomFraction();
   const sphere = box.getBoundingSphere(new THREE.Sphere());
@@ -629,6 +645,7 @@ function frame(box, immediate, t) {
 
 function render() {
   if (!ready) return;
+  if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (viewingTop() ? 1 : -1);
   setDepthRange(camera.position.distanceTo(controls.target));
   renderer.render(scene, camera);
 }
@@ -685,6 +702,7 @@ function highlight3D(refs, noFrame) {
     }
   }
   if (!noFrame) {
+    flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
   }
