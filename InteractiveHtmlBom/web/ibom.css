@@ -245,6 +245,7 @@ canvas:active {
 }
 
 .dnp-ref {
+  cursor: help;
   color: #e00000;
   font-weight: bold;
   text-decoration: line-through;
