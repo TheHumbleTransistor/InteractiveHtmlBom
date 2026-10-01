@@ -240,8 +240,8 @@ and clicking it shows the same text, which also works on touchscreens:
 - **BOM:** DNP refs are red and struck through, and a row that is entirely DNP is tinted red with lightened text and a red stripe that stays when the row is
   selected.
 - **2D and 3D:** a red cross over each DNP footprint, shown while the **DNP markers** setting is
-  on (the default). In 3D the cross sits on the bare land pattern;
-  the part appears highlighted red while selected, and tinted red once it is ticked Placed.
+  on (the default). A selected DNP part is highlighted red in both views instead of green. In 3D
+  the cross sits on the bare land pattern, and the part is tinted red once it is ticked Placed.
 - **Checkbox progress** (e.g. *Placed 0/140*) leaves DNP parts out of the total.
 - **Grouping** always puts DNP parts in their own row, whatever `--group-fields` says.
 - **Ticking Placed** (or whichever column `--mark-when-checked` names) on a DNP row asks for
