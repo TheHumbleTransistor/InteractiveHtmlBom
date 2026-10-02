@@ -315,6 +315,10 @@ Footprints are a collection of pads, drawings and some metadata.
       // OR footprint has no pads named as one of above and
       // current pad's name is lexicographically smallest.
       "pin1": 1,
+      // Only present when the footprint has no first pin as above and 2-4
+      // named pads (e.g. a diode's K and A); then every pad carries its
+      // name and none is marked "pin1".
+      "name": name,
       // Shape is one of "rect", "oval", "circle", "roundrect", "chamfrect", custom".
       "shape": shape,
       // Only present if shape is "custom".
