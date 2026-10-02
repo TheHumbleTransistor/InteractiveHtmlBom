@@ -540,7 +540,8 @@ var pin1Materials = {};
 // Drawn first, so only each pixel's nearest marker surface blends in and overlaps don't darken.
 const pin1DepthMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
 
-/* The marker colour with an opaque "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
+/* The marker colour with any opaque text in the middle; pin1CapUVs() puts the middle on the
+ * sphere's cap. */
 function pin1Material(color, text) {
   const key = color + '\n' + text;
   if (!pin1Materials[key]) {
@@ -549,13 +550,15 @@ function pin1Material(color, text) {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, 256, 256);
-    ctx.fillStyle = 'black';
-    ctx.font = 'bold 225px sans-serif';
-    const fit = Math.min(1, 200 / ctx.measureText(text).width);   // longer pad names shrink to fit
-    ctx.font = 'bold ' + Math.floor(225 * fit) + 'px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 128, 128 + 18 * fit);
+    if (text) {
+      ctx.fillStyle = 'black';
+      ctx.font = 'bold 225px sans-serif';
+      const fit = Math.min(1, 200 / ctx.measureText(text).width);   // longer pad names shrink to fit
+      ctx.font = 'bold ' + Math.floor(225 * fit) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 128, 128 + 18 * fit);
+    }
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     pin1Materials[key] = new THREE.MeshStandardMaterial(
@@ -680,7 +683,7 @@ function updatePin1(refs) {
     const pads = fp.pads || [];
     const named = pads.filter((p, i) => p.name && pads.findIndex(q => q.name === p.name) === i);
     for (const pad of (named.length ? named : pads.filter(p => p.pin1))) {
-      const mat = pin1Material(PIN1_COLOR, pad.name || '1');
+      const mat = pin1Material(PIN1_COLOR, pad.name || '');
       for (const side of (pad.type === 'th' ? ['F', 'B'] : [fp.layer])) {
         pin1Group.add(buildPin1Marker(fp, pad, mat, side));
       }

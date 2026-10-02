@@ -78,11 +78,11 @@ gets a 3D marker: a sphere whose bottom sits on top of the part's 3D model, on a
 to touch the pad and meets the sphere where their surfaces are tangent. So the marker clears its own
 part, with the sphere held between 1.25 mm and 2.5 mm off the board; above that, the 15° outward
 lean keeps it off a tall body. A through-hole pin 1 is marked on both faces of the board; on the far
-side the sphere clears the leads poking through. A "1" is printed on the sphere's outer cap, fixed
+side the sphere clears the leads poking through. A pin-1 marker is plain. A part with no pin 1
+(2-4 pads, none named 1, e.g. a diode whose pads are K and A) gets a marker on each pad instead,
+with that pad's name printed on the sphere's outer cap, and no pin-1 mark in 2D. The name is fixed
 to the marker rather than turning to face the camera; it reads upright with the board's top edge up,
-and on bottom-side markers from below. A part with no pin 1 (2-4 pads, none named 1, e.g. a diode
-whose pads are K and A) gets a marker on each pad instead, printed with that pad's name, and no
-pin-1 mark in 2D. The marker is white at 70 % opacity, with its text opaque.
+and on bottom-side markers from below. The marker is white at 70 % opacity, with its text opaque.
 
 Every marker's sphere has the same radius, 0.42 mm, so the marker is sized in board millimetres and
 grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker size** in the settings
