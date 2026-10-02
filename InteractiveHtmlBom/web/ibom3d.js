@@ -723,10 +723,21 @@ function flipToSelection(refs) {
 
 const FLIP_MS = 500;
 var flipAnim = null;
+var flipEnd = null;                      // where the running flip will leave the camera
 
+/* Stop where it is: the user has taken over the view. */
 function stopFlipAnimation() {
   if (flipAnim) cancelAnimationFrame(flipAnim);
   flipAnim = null;
+}
+
+/* Jump to where the running flip was heading, so the next move starts from that view. */
+function finishFlipAnimation() {
+  if (!flipAnim) return;
+  stopFlipAnimation();
+  camera.position.copy(flipEnd.position);
+  camera.up.copy(flipEnd.up);
+  camera.lookAt(controls.target);
 }
 
 /* Animate the half turn about `axis` that ends at the camera's current position and up. */
@@ -734,6 +745,7 @@ function animateFlip(axis) {
   stopFlipAnimation();
   const half = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
   const endUp = camera.up.clone();
+  flipEnd = { position: camera.position.clone(), up: endUp };
   const fromOffset = camera.position.clone().sub(controls.target).applyQuaternion(half);
   const fromUp = endUp.clone().applyQuaternion(half);
   const t0 = performance.now();
@@ -832,7 +844,7 @@ function highlight3D(refs, noFrame) {
     }
   }
   if (!noFrame) {
-    stopFlipAnimation();
+    finishFlipAnimation();
     const flipped = flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
