@@ -425,6 +425,13 @@ classification is shown in a **Polarized** column, hidden by default (the column
 in both the 2D and 3D views. Turn it off to mark every part again. Yes and Unknown parts always keep
 their marks.
 
+### Sound Effect on Placed
+
+Off by default. With it on, ticking a line's Placed box plays a clay block being set down for each
+of its parts, stepping up in pitch as the stack grows, up to 10. Lines ticked during a run, or
+within half a second after it, add to the same run. Placing the last part plays a short fanfare.
+Unticking is silent. The sound is synthesised in the browser, so the BOM carries no audio files.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.
