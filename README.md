@@ -127,27 +127,18 @@ BOM with no such column, and the column stays available to re-enable in the colu
 
 ### Zoom on select
 
-A **3D zoom on select** slider in the settings menu, styled like Board rotation. It controls how
-far the camera travels toward a fit-on-the-selection when you click a BOM row.
+A **3D: Zoom on select** slider in the settings menu. It works like cropping: the percentage is how
+much of the board is cropped out of view, centred on the selected parts.
 
-- **0 % (default)** — the camera does not move at all; selecting a row only highlights it.
-- **100 %** — the original fit-to-selection behaviour, bit-for-bit. The `MIN_FIT_FRACTION` clamp
-  lives inside the target distance precisely so this stays identical rather than merely similar.
+- **0 % (default):** the camera doesn't move; selecting a row only highlights it.
+- **10 %** shows about 90 % of the board's area, **50 %** about half, and so on up to **100 %**.
+- However high the setting, the camera never gets so close that the selection fills more than 20 %
+  of the view, so there is always some board around it for context. It never zooms out past the
+  whole board either, so deselecting returns to the whole-board view.
 
-The fraction is **relative to wherever the camera currently is**, which is what lets 0 % mean "do
-not move" rather than "frame the whole board". The trade: clicking the same row twice at 50 % lands
-75 % of the way in, since each move starts from the last. Between different rows it behaves like a
-damped follow.
-
-Two things worth knowing if you touch it:
-
-- The initial whole-board framing passes `t = 1` explicitly, so the opening view is set up
-  regardless of the slider. Verified: the opening view is identical at 0 % and at 100 %.
-- The setter deliberately does **not** re-frame the current selection. `oninput` fires continuously
-  while dragging, and because the move is relative each re-frame would compound — the view would
-  fly in as you drag. The new value applies on the next selection.
-- `frame()` reads `settings.zoom3d` on every call rather than caching it. `initDefaults()` restores
-  it at `window.onload` while the GLB loads asynchronously, so a mirrored copy is a race.
+The zoom is absolute, worked out fresh on every selection, so selecting the same row again doesn't
+zoom further. The view direction is kept; only the target and distance change. A new value applies
+on the next selection.
 
 ### Free rotation
 
