@@ -723,7 +723,20 @@ function flipToSelection(refs) {
 
 const FLIP_MS = 500;
 var flipAnim = null;
-var flipEnd = null;                      // where the running flip will leave the camera
+var flipEnd = null;                      // the pose the running animation will leave the camera in
+var holdRender = false;
+
+function cameraPose() {
+  return { target: controls.target.clone(), position: camera.position.clone(),
+           up: camera.up.clone(), quaternion: camera.quaternion.clone() };
+}
+
+function setCameraPose(pose) {
+  controls.target.copy(pose.target);
+  camera.position.copy(pose.position);
+  camera.up.copy(pose.up);
+  camera.lookAt(controls.target);
+}
 
 /* Stop where it is: the user has taken over the view. */
 function stopFlipAnimation() {
@@ -731,31 +744,50 @@ function stopFlipAnimation() {
   flipAnim = null;
 }
 
-/* Jump to where the running flip was heading, so the next move starts from that view. */
-function finishFlipAnimation() {
-  if (!flipAnim) return;
-  stopFlipAnimation();
-  camera.position.copy(flipEnd.position);
-  camera.up.copy(flipEnd.up);
-  camera.lookAt(controls.target);
-}
+const easeInOut = (k) => k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
 
-/* Animate the half turn about `axis` that ends at the camera's current position and up. */
+/* Animate the half turn about `axis` that ends at the camera's current pose. A half turn has no
+ * unique shortest path, so it is driven about the axis explicitly. */
 function animateFlip(axis) {
   stopFlipAnimation();
+  flipEnd = cameraPose();
   const half = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
-  const endUp = camera.up.clone();
-  flipEnd = { position: camera.position.clone(), up: endUp };
   const fromOffset = camera.position.clone().sub(controls.target).applyQuaternion(half);
-  const fromUp = endUp.clone().applyQuaternion(half);
+  const fromUp = flipEnd.up.clone().applyQuaternion(half);
   const t0 = performance.now();
   const step = (now) => {
     const k = Math.min((now - t0) / FLIP_MS, 1);
-    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-    const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI * ease);
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI * easeInOut(k));
     camera.position.copy(fromOffset).applyQuaternion(q).add(controls.target);
-    camera.up.copy(k < 1 ? fromUp.clone().applyQuaternion(q) : endUp);
+    camera.up.copy(k < 1 ? fromUp.clone().applyQuaternion(q) : flipEnd.up);
     camera.lookAt(controls.target);
+    render();
+    flipAnim = k < 1 ? requestAnimationFrame(step) : null;
+  };
+  step(t0);
+}
+
+/* Animate from one pose to another: orientation slerped, target and distance interpolated. Used
+ * to carry on, or turn back, from wherever an interrupted animation had got to. Takes as long as
+ * a flip would for the same amount of turning. */
+function animateBetween(from, to) {
+  stopFlipAnimation();
+  flipEnd = to;
+  const fromDist = from.position.distanceTo(from.target), toDist = to.position.distanceTo(to.target);
+  const ms = Math.max(FLIP_MS * from.quaternion.angleTo(to.quaternion) / Math.PI, 1);
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min((now - t0) / ms, 1), e = easeInOut(k);
+    if (k < 1) {
+      const q = from.quaternion.clone().slerp(to.quaternion, e);
+      controls.target.lerpVectors(from.target, to.target, e);
+      camera.quaternion.copy(q);
+      camera.position.set(0, 0, THREE.MathUtils.lerp(fromDist, toDist, e))
+        .applyQuaternion(q).add(controls.target);
+      camera.up.set(0, 1, 0).applyQuaternion(q);
+    } else {
+      setCameraPose(to);
+    }
     render();
     flipAnim = k < 1 ? requestAnimationFrame(step) : null;
   };
@@ -778,7 +810,7 @@ function frame(box, immediate, t) {
 }
 
 function render() {
-  if (!ready) return;
+  if (!ready || holdRender) return;
   const top = viewingTop();
   if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (top ? 1 : -1);
   if (pin1Group) {
@@ -844,11 +876,20 @@ function highlight3D(refs, noFrame) {
     }
   }
   if (!noFrame) {
-    finishFlipAnimation();
+    // Mid-animation, decide the next view as if the animation had finished, but move there from
+    // wherever the camera actually is, so nothing jumps.
+    const interrupted = flipAnim ? cameraPose() : null;
+    if (interrupted) {
+      stopFlipAnimation();
+      holdRender = true;
+      setCameraPose(flipEnd);
+    }
     const flipped = flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
-    if (flipped) animateFlip(flipped);
+    holdRender = false;
+    if (interrupted) animateBetween(interrupted, cameraPose());
+    else if (flipped) animateFlip(flipped);
   }
   updatePin1(refs);
   applyDim();
