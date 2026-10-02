@@ -20,12 +20,10 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-// Follow the 2D view's own CSS variable rather than hardcoding, so the marker matches the canvas
-// and tracks dark mode for free -- render.js reads the same property.
-const PIN1_COLOR_VAR = '--pin1-outline-color';
-const PIN1_COLOR_FALLBACK = '#ffb629';
-const PIN1_RADIUS_PER_PAD = 0.7;   // sphere radius / the pad's shorter side, at 100 %
-const PIN1_MIN_RADIUS_MM = 0.4;
+const PIN1_COLOR = 'rgba(255, 255, 255, 0.7)';
+const PIN1_RADIUS_MM = 0.21;       // every marker's sphere, at 100 %
+const PIN1_MIN_HEIGHT_MM = 1.25;   // sphere bottom above the board, however short the part
+const PIN1_MAX_HEIGHT_MM = 2.5;    // sphere bottom above the board, however tall the part
 const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
 const PIN1_LEAN_DEG = 15;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
@@ -539,8 +537,11 @@ function buildDnpCrosses() {
 /* Pin-1 marker: a sphere whose bottom sits on top of the part's 3D model, on a cone whose tip touches
  * the pin-1 pad and which meets the sphere where their surfaces are tangent. */
 var pin1Materials = {};
+// Drawn first, so only each pixel's nearest marker surface blends in and overlaps don't darken.
+const pin1DepthMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
 
-/* The marker colour with a "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
+/* The marker colour with any opaque text in the middle; pin1CapUVs() puts the middle on the
+ * sphere's cap. */
 function pin1Material(color, text) {
   const key = color + '\n' + text;
   if (!pin1Materials[key]) {
@@ -549,17 +550,19 @@ function pin1Material(color, text) {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, 256, 256);
-    ctx.fillStyle = 'black';
-    ctx.font = 'bold 225px sans-serif';
-    const fit = Math.min(1, 200 / ctx.measureText(text).width);   // longer pad names shrink to fit
-    ctx.font = 'bold ' + Math.floor(225 * fit) + 'px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(text, 128, 128 + 18 * fit);
+    if (text) {
+      ctx.fillStyle = 'black';
+      ctx.font = 'bold 225px sans-serif';
+      const fit = Math.min(1, 200 / ctx.measureText(text).width);   // longer pad names shrink to fit
+      ctx.font = 'bold ' + Math.floor(225 * fit) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 128, 128 + 18 * fit);
+    }
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     pin1Materials[key] = new THREE.MeshStandardMaterial(
-      { map: tex, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
+      { map: tex, transparent: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
   }
   return pin1Materials[key];
 }
@@ -629,13 +632,14 @@ function pin1Tip(fp, pad) {
 
 function buildPin1Marker(fp, pad, mat, side) {
   const back = side === 'B';
-  const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))
-    * pin1Scale() * 0.001;
+  const r = PIN1_RADIUS_MM * pin1Scale() * 0.001;
   const out = pin1Outward(fp, pad);
   const lean = out ? THREE.MathUtils.degToRad(PIN1_LEAN_DEG) : 0;
-  // Pad to sphere centre along the marker's axis; the centre's height off the board still clears
-  // the part.
-  const d = (Math.max(partHeight(fp, side), r) + r) / Math.cos(lean);
+  // Pad to sphere centre along the marker's axis. Between the height limits the sphere clears the
+  // part; above them the lean keeps it off a tall body.
+  const height = THREE.MathUtils.clamp(partHeight(fp, side),
+                                       PIN1_MIN_HEIGHT_MM * 0.001, PIN1_MAX_HEIGHT_MM * 0.001);
+  const d = (height + r) / Math.cos(lean);
   const slant = Math.sqrt(d * d - r * r);
   const ringH = slant * slant / d, ringR = r * slant / d;
   const marker = new THREE.Group();
@@ -654,6 +658,8 @@ function buildPin1Marker(fp, pad, mat, side) {
   const coneUV = cone.geometry.attributes.uv;
   for (let i = 0; i < coneUV.count; i++) coneUV.setXY(i, 0.02, 0.02);
   pin1CapUVs(sphere.geometry, new THREE.Vector3(0, d, 0), marker.quaternion, r, back);
+  marker.add(new THREE.Mesh(cone.geometry, pin1DepthMaterial),
+             new THREE.Mesh(sphere.geometry, pin1DepthMaterial));
   return marker;
 }
 
@@ -664,9 +670,6 @@ function updatePin1(refs) {
   const mode = settings.highlightpin1;
   if (!xform || mode == "none") return;
   const wanted = (mode == "all") ? null : new Set(refs || []);
-  const css = getComputedStyle(document.documentElement)
-    .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const color = css || PIN1_COLOR_FALLBACK;
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
     if (pin1Omitted(fp)) continue;
@@ -680,7 +683,7 @@ function updatePin1(refs) {
     const pads = fp.pads || [];
     const named = pads.filter((p, i) => p.name && pads.findIndex(q => q.name === p.name) === i);
     for (const pad of (named.length ? named : pads.filter(p => p.pin1))) {
-      const mat = pin1Material(color, pad.name || '1');
+      const mat = pin1Material(PIN1_COLOR, pad.name || '');
       for (const side of (pad.type === 'th' ? ['F', 'B'] : [fp.layer])) {
         pin1Group.add(buildPin1Marker(fp, pad, mat, side));
       }
