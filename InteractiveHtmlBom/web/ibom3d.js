@@ -669,6 +669,7 @@ function updatePin1(refs) {
   const color = css || PIN1_COLOR_FALLBACK;
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
+    if (pin1Omitted(fp)) continue;
     // Deliberately NOT skipped when the placed filter hides the part: the marker marks the LAND
     // PATTERN, which is still on screen, and an unfitted part is exactly when you need to know
     // which end pin 1 is.

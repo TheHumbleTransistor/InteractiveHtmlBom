@@ -287,6 +287,9 @@ Footprints are a collection of pads, drawings and some metadata.
 ```js
 {
   "ref": reference,
+  // Optional. "yes", "no" or "unknown": whether the part's orientation
+  // matters. "no" only with evidence from the schematic symbol (KiCad).
+  "polarized": polarized,
   // Optional. "smd" or "th" from the ECAD footprint type; if absent, the
   // footprint counts as "th" when any of its pads is through-hole.
   "mount": mount,

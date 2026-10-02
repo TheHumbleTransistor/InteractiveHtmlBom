@@ -405,6 +405,26 @@ parts on both sides is split into a top row and a bottom row; hide the column an
 **Shift+click** a column header to add it as a further sort key, e.g. Side then Mounting Type. A
 small number on each sorted header shows its priority. A plain click sorts by that column alone.
 
+### Polarized parts and pin 1
+
+Each part is classified **Yes**, **No** or **Unknown** for whether its orientation matters. The
+classification is shown in a **Polarized** column, hidden by default (the column menu shows it).
+
+- **No** requires evidence from the part's schematic symbol and none to the contrary: a two-pad
+  R, C, L, FB or F whose Description (copied from the symbol) reads "Resistor", "Unpolarized
+  capacitor", "Inductor", "Ferrite bead", "Fuse" or mentions ceramic, or whose symbol footprint
+  filters are `R_*`, `C_*`, `L_*` and the like, **and** whose footprint silkscreen is symmetric
+  about both of its axes (a "+", cathode band or pin-1 dot breaks that). The footprint alone never
+  makes a part No, since polarized capacitors are often placed on plain, symmetric `C_` footprints.
+- **Yes**: a polarity signal (`CP_` footprint or filter, "Polarized capacitor", a diode or LED), or
+  more than two pins.
+- **Unknown**: everything else, including conflicting evidence (a bidirectional TVS diode, an
+  inductor whose footprint marks pin 1), no silkscreen, or no symbol fields at all.
+
+**Omit pin-1 marker on bidirectional parts**, on by default, hides the pin-1 marks of parts classified No,
+in both the 2D and 3D views. Turn it off to mark every part again. Yes and Unknown parts always keep
+their marks.
+
 ## Installation and Usage
 
 See [project wiki](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Installation) for instructions.
