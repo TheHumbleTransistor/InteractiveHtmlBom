@@ -729,16 +729,16 @@ function mountLabels(references) {
 
 const POLARITY_COLUMN = "Polarized";
 const POLARITY_HEADER_TOOLTIP = "Does orientation matter? No = resistor, ceramic capacitor, " +
-  "inductor, fuse or ferrite bead per its schematic symbol. Unsure = couldn't tell, so its pin 1 " +
+  "inductor, fuse or ferrite bead per its schematic symbol. Unknown = couldn't tell, so its pin 1 " +
   "is still marked.";
-const POLARITY_LABELS = { yes: "Yes", no: "No", unsure: "Unsure" };
+const POLARITY_LABELS = { yes: "Yes", no: "No", unknown: "Unknown" };
 
 function polarityLabels(references) {
-  return [...new Set(references.map(r => pcbdata.footprints[r[1]].polarized || "unsure"))]
+  return [...new Set(references.map(r => pcbdata.footprints[r[1]].polarized || "unknown"))]
     .sort().map(p => POLARITY_LABELS[p]);
 }
 
-/* True when the "omit pin 1 on non-polarized parts" setting hides this footprint's pin-1 mark. */
+/* True when the "omit pin 1 on bidirectional parts" setting hides this footprint's pin-1 mark. */
 function pin1Omitted(footprint) {
   return settings.omitPin1NonPolar && footprint.polarized === "no";
 }

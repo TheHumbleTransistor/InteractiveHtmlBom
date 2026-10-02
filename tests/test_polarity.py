@@ -25,12 +25,12 @@ def test_polarized_parts():
 
 def test_tantalum_on_a_plain_footprint_is_not_called_unpolarized():
     assert classify('C9', 'C_1206_3216Metric', {'1', '2'}, 'Polarized capacitor', 'CP_*') == 'yes'
-    assert classify('C9', 'C_1206_3216Metric', {'1', '2'}, '', '') == 'unsure'
+    assert classify('C9', 'C_1206_3216Metric', {'1', '2'}, '', '') == 'unknown'
 
 
-def test_conflicting_or_missing_evidence_is_unsure():
+def test_conflicting_or_missing_evidence_is_unknown():
     assert classify('D1', 'D_SMC', {'1', '2'}, 'Bidirectional transient-voltage-suppression diode',
-                    'TO-???* *_Diode_* *SingleDiode* D_*') == 'unsure'
-    assert classify('R1', 'R_0805_2012Metric', {'1', '2'}) == 'unsure'
-    assert classify('SW1', 'SW_SPST_TL3342', {'1', '2'}, 'Push button switch', '') == 'unsure'
-    assert classify('TP1', 'TestPoint_Pad_1.0x1.0mm', {'1'}, 'test point', '') == 'unsure'
+                    'TO-???* *_Diode_* *SingleDiode* D_*') == 'unknown'
+    assert classify('R1', 'R_0805_2012Metric', {'1', '2'}) == 'unknown'
+    assert classify('SW1', 'SW_SPST_TL3342', {'1', '2'}, 'Push button switch', '') == 'unknown'
+    assert classify('TP1', 'TestPoint_Pad_1.0x1.0mm', {'1'}, 'test point', '') == 'unknown'

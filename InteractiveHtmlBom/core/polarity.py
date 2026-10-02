@@ -15,7 +15,7 @@ _POLAR_FOOTPRINT = re.compile(r'^(CP_|D_|LED_)')
 
 def classify(ref, footprint_name, pad_names, description='', filters=''):
     # type: (str, str, set, str, str) -> str
-    """Return 'yes', 'no' or 'unsure': does this part's orientation matter?
+    """Return 'yes', 'no' or 'unknown': does this part's orientation matter?
 
     'no' requires evidence from the schematic symbol (description or footprint filters) and none
     to the contrary. Never infer 'no' from the footprint name alone: polarized capacitors are
@@ -25,7 +25,7 @@ def classify(ref, footprint_name, pad_names, description='', filters=''):
     if len(names) > 2:
         return 'yes'
     if len(names) < 2:
-        return 'unsure'
+        return 'unknown'
     description = (description or '').strip().lower()
     filter_tokens = set((filters or '').split())
 
@@ -37,8 +37,8 @@ def classify(ref, footprint_name, pad_names, description='', filters=''):
                 or 'bidirectional' in description
                 or bool(filter_tokens & _NONPOLAR_FILTERS))
     if polar:
-        return 'unsure' if nonpolar else 'yes'
+        return 'unknown' if nonpolar else 'yes'
     prefix = re.match(r'[A-Za-z]*', ref or '').group(0).upper()
     if nonpolar and prefix in _BIDIRECTIONAL_REFS:
         return 'no'
-    return 'unsure'
+    return 'unknown'

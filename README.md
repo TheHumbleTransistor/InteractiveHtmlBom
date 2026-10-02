@@ -407,7 +407,7 @@ small number on each sorted header shows its priority. A plain click sorts by th
 
 ### Polarized parts and pin 1
 
-Each part is classified **Yes**, **No** or **Unsure** for whether its orientation matters. The
+Each part is classified **Yes**, **No** or **Unknown** for whether its orientation matters. The
 classification is shown in a **Polarized** column, hidden by default (the column menu shows it).
 
 - **No** requires evidence from the part's schematic symbol and none to the contrary: a two-pad
@@ -417,11 +417,11 @@ classification is shown in a **Polarized** column, hidden by default (the column
   since polarized capacitors are often placed on plain `C_` footprints.
 - **Yes**: a polarity signal (`CP_` footprint or filter, "Polarized capacitor", a diode or LED), or
   more than two pins.
-- **Unsure**: everything else, including conflicting evidence (a bidirectional TVS diode) or a
+- **Unknown**: everything else, including conflicting evidence (a bidirectional TVS diode) or a
   part with no symbol fields at all.
 
-**Omit pin 1 on non-polarized parts**, on by default, hides the pin-1 marks of parts classified No,
-in both the 2D and 3D views. Turn it off to mark every part again. Yes and Unsure parts always keep
+**Omit pin 1 on bidirectional parts**, on by default, hides the pin-1 marks of parts classified No,
+in both the 2D and 3D views. Turn it off to mark every part again. Yes and Unknown parts always keep
 their marks.
 
 ## Installation and Usage

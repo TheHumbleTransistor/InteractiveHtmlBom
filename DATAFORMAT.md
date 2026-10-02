@@ -287,7 +287,7 @@ Footprints are a collection of pads, drawings and some metadata.
 ```js
 {
   "ref": reference,
-  // Optional. "yes", "no" or "unsure": whether the part's orientation
+  // Optional. "yes", "no" or "unknown": whether the part's orientation
   // matters. "no" only with evidence from the schematic symbol (KiCad).
   "polarized": polarized,
   // Optional. "smd" or "th" from the ECAD footprint type; if absent, the
