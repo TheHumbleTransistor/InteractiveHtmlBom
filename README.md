@@ -76,7 +76,7 @@ through component edges at grazing angles.
 Honours the existing **Highlight first pin** setting (`none` / `all` / `selected`). Each pin-1 pad
 gets a 3D marker: a sphere whose bottom sits on top of the part's 3D model, on a cone that runs down
 to touch the pad and meets the sphere where their surfaces are tangent. So the marker clears its own
-part, up to a 3 mm height limit; above that, the 15° outward lean keeps it off a tall body. A
+part, up to a 5 mm height limit; above that, the 15° outward lean keeps it off a tall body. A
 through-hole pin 1 is marked on both faces of the board; on the far side the sphere clears the leads
 poking through. A "1" is printed on the sphere's outer cap, fixed to the marker rather than turning
 to face the camera; it reads upright with the board's top edge up, and on bottom-side markers from
@@ -85,10 +85,10 @@ marker on each pad instead, printed with that pad's name, and no pin-1 mark in 2
 coloured from the 2D view's own `--pin1-outline-color` CSS variable, so it matches the canvas and
 follows dark mode.
 
-The sphere's radius is 0.7 × the pin-1 pad's shorter side (at least 0.4 mm, at most 1 mm), so the
-marker is sized in board millimetres and grows and shrinks with zoom like the rest of the board.
-**3D: Pin 1 marker size** in the settings menu scales it (50–200 %). Markers have their own render
-pass and light, so the board's dimming doesn't reach them.
+Every marker's sphere has the same radius, 0.42 mm, so the marker is sized in board millimetres and
+grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker size** in the settings
+menu scales it (50–200 %). Markers have their own render pass and light, so the board's dimming
+doesn't reach them.
 
 The cone's tip sits on the **board face**, not on the footprint node's origin: the origin is
 skewed by any z offset the 3D model carries (`J5`'s is 3.85 mm, which left its mark hovering in

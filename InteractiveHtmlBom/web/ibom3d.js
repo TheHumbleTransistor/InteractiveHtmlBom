@@ -24,10 +24,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
-const PIN1_RADIUS_PER_PAD = 0.7;   // sphere radius / the pad's shorter side, at 100 %
-const PIN1_MIN_RADIUS_MM = 0.4;
-const PIN1_MAX_RADIUS_MM = 1.0;    // before the size setting is applied
-const PIN1_MAX_HEIGHT_MM = 3.0;    // sphere bottom above the board, however tall the part
+const PIN1_RADIUS_MM = 0.42;       // every marker's sphere, at 100 %
+const PIN1_MAX_HEIGHT_MM = 5.0;    // sphere bottom above the board, however tall the part
 const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
 const PIN1_LEAN_DEG = 15;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
@@ -631,8 +629,7 @@ function pin1Tip(fp, pad) {
 
 function buildPin1Marker(fp, pad, mat, side) {
   const back = side === 'B';
-  const r = Math.min(PIN1_MAX_RADIUS_MM,
-    Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))) * pin1Scale() * 0.001;
+  const r = PIN1_RADIUS_MM * pin1Scale() * 0.001;
   const out = pin1Outward(fp, pad);
   const lean = out ? THREE.MathUtils.degToRad(PIN1_LEAN_DEG) : 0;
   // Pad to sphere centre along the marker's axis. The sphere clears the part up to the height cap;
