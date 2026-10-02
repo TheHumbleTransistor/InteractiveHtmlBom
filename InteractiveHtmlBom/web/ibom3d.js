@@ -548,6 +548,33 @@ function pin1Material(color) {
   return pin1Materials[color];
 }
 
+/* A camera-facing "1" floated just past the sphere's outer end. Depth-tested, so markers in front
+ * hide it like anything else. */
+var pin1LabelMaterial = null;
+function pin1Label(r) {
+  if (!pin1LabelMaterial) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 112px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 14;
+    ctx.strokeStyle = 'white';
+    ctx.strokeText('1', 64, 70);
+    ctx.fillStyle = 'black';
+    ctx.fillText('1', 64, 70);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    pin1LabelMaterial = new THREE.SpriteMaterial(
+      { map: tex, transparent: true, depthWrite: false, toneMapped: false });
+  }
+  const label = new THREE.Sprite(pin1LabelMaterial);
+  label.scale.setScalar(r * 1.6);
+  return label;
+}
+
 function pin1Scale() {
   const v = (typeof settings !== "undefined" && settings.pin1Size3d !== undefined)
     ? settings.pin1Size3d : 100;
@@ -606,6 +633,9 @@ function buildPin1Marker(fp, pad, mat, side) {
     new THREE.Mesh(new THREE.ConeGeometry(ringR, ringH, 24).rotateX(Math.PI)
       .translate(0, ringH / 2, 0), mat),
     new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16).translate(0, d, 0), mat));
+  const label = pin1Label(r);
+  label.position.set(0, d + r * 1.8, 0);
+  marker.add(label);
   marker.position.copy(toModel(pin1Tip(fp, pad), back ? boardBottomY : boardTopY));
   const axis = new THREE.Vector3(0, back ? -Math.cos(lean) : Math.cos(lean), 0);
   if (out) {
