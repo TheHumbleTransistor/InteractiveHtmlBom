@@ -142,6 +142,11 @@ function setOmitPin1NonPolar(value) {
   redrawIfInitDone();
 }
 
+function setSoundOnPlaced(value) {
+  writeStorage("soundOnPlaced", value);
+  settings.soundOnPlaced = value;
+}
+
 function setHighlightPin1(value) {
   writeStorage("highlightpin1", value);
   settings.highlightpin1 = value;
@@ -282,7 +287,11 @@ function createCheckboxHandlers(input, checkbox, references, row) {
     }
     settings.checkboxStoredRefs[checkbox] = [...refsSet].join(",");
     writeStorage("checkbox_" + checkbox, settings.checkboxStoredRefs[checkbox]);
-    updateCheckboxStats(checkbox);
+    var complete = updateCheckboxStats(checkbox);
+    if (settings.soundOnPlaced && input.checked && checkbox == (settings.markWhenChecked || "Placed")) {
+      placedSound.play(references.length);
+      if (complete) placedSound.finish();
+    }
     EventHandler.emitEvent(IBOM_EVENT_TYPES.CHECKBOX_CHANGE_EVENT, eventArgs);
   }
 
@@ -1345,6 +1354,7 @@ function updateCheckboxStats(checkbox) {
   var td = document.getElementById("checkbox-stats-" + checkbox);
   td.firstChild.style.width = percent + "%";
   td.lastChild.innerHTML = checked + "/" + total + " (" + Math.round(percent) + "%)";
+  return checked == total;
 }
 
 function constrain(number, min, max) {

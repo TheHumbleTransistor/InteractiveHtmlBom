@@ -473,6 +473,8 @@ function overwriteSettings(newSettings) {
   document.forms.highlightpin1.highlightpin1.value = settings.highlightpin1;
   setOmitPin1NonPolar(settings.omitPin1NonPolar);
   document.getElementById("omitPin1NonPolarCheckbox").checked = settings.omitPin1NonPolar;
+  setSoundOnPlaced(settings.soundOnPlaced);
+  document.getElementById("soundOnPlacedCheckbox").checked = settings.soundOnPlaced;
   writeStorage("boardRotation", settings.boardRotation);
   document.getElementById("boardRotation").value = settings.boardRotation / 5;
   document.getElementById("rotationDegree").textContent = settings.boardRotation;
@@ -515,6 +517,7 @@ var settings = {
   highlightpin1: "selected",
   placed3donly: true,
   omitPin1NonPolar: true,
+  soundOnPlaced: false,
   redrawOnDrag: true,
   boardRotation: 0,
   zoom3d: 0,
@@ -606,6 +609,7 @@ function initDefaults() {
   initBooleanSetting("highlightRowOnClick", true, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
   initBooleanSetting("placed3donly", true, "placed3dOnlyCheckbox", setPlaced3dOnly);
   initBooleanSetting("omitPin1NonPolar", true, "omitPin1NonPolarCheckbox", setOmitPin1NonPolar);
+  initBooleanSetting("soundOnPlaced", false, "soundOnPlacedCheckbox", setSoundOnPlaced);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
   var anyDnp = pcbdata.bom.both.some(row => row.some(r => dnpFootprints.has(r[1])));

@@ -368,6 +368,7 @@ def generate_file(pcb_file_dir, pcb_file_name, pcbdata, config):
     html = html.replace('///UTILJS///', get_file_content('util.js'))
     html = html.replace('///RENDERJS///', get_file_content('render.js'))
     html = html.replace('///TABLEUTILJS///', get_file_content('table-util.js'))
+    html = html.replace('///SOUNDJS///', get_file_content('sound.js'))
     html = html.replace('///IBOMJS///', get_file_content('ibom.js'))
     html = html.replace('///USERJS///', get_file_content('user.js'))
     glb_file = getattr(config, 'glb_file', None)
