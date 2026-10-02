@@ -541,8 +541,9 @@ function buildDnpCrosses() {
 var pin1Materials = {};
 
 /* The marker colour with a "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
-function pin1Material(color) {
-  if (!pin1Materials[color]) {
+function pin1Material(color, text) {
+  const key = color + '\n' + text;
+  if (!pin1Materials[key]) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 256;
     const ctx = canvas.getContext('2d');
@@ -550,15 +551,17 @@ function pin1Material(color) {
     ctx.fillRect(0, 0, 256, 256);
     ctx.fillStyle = 'black';
     ctx.font = 'bold 225px sans-serif';
+    const fit = Math.min(1, 200 / ctx.measureText(text).width);   // longer pad names shrink to fit
+    ctx.font = 'bold ' + Math.floor(225 * fit) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('1', 128, 146);
+    ctx.fillText(text, 128, 128 + 18 * fit);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
-    pin1Materials[color] = new THREE.MeshStandardMaterial(
+    pin1Materials[key] = new THREE.MeshStandardMaterial(
       { map: tex, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
   }
-  return pin1Materials[color];
+  return pin1Materials[key];
 }
 
 /* Project the texture straight down onto the sphere's outer half, in board orientation: board +x
@@ -663,7 +666,7 @@ function updatePin1(refs) {
   const wanted = (mode == "all") ? null : new Set(refs || []);
   const css = getComputedStyle(document.documentElement)
     .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const mat = pin1Material(css || PIN1_COLOR_FALLBACK);
+  const color = css || PIN1_COLOR_FALLBACK;
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
     // Deliberately NOT skipped when the placed filter hides the part: the marker marks the LAND
@@ -672,8 +675,11 @@ function updatePin1(refs) {
     // Root the marker on the BOARD FACE, not on the footprint node's origin. The origin is skewed
     // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its mark hovering in
     // mid-air -- and the marker belongs on the land pattern anyway.
-    for (const pad of (fp.pads || [])) {
-      if (!pad.pin1) continue;
+    // A part with no pin 1 (e.g. a diode's K/A) has its pads named instead: mark one pad of each.
+    const pads = fp.pads || [];
+    const named = pads.filter((p, i) => p.name && pads.findIndex(q => q.name === p.name) === i);
+    for (const pad of (named.length ? named : pads.filter(p => p.pin1))) {
+      const mat = pin1Material(color, pad.name || '1');
       for (const side of (pad.type === 'th' ? ['F', 'B'] : [fp.layer])) {
         pin1Group.add(buildPin1Marker(fp, pad, mat, side));
       }

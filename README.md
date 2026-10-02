@@ -79,8 +79,10 @@ to touch the pad and meets the sphere where their surfaces are tangent. So the m
 its own part, however tall. A through-hole pin 1 is marked on both faces of the board; on the far
 side the sphere clears the leads poking through. A "1" is printed on the sphere's outer cap, fixed
 to the marker rather than turning to face the camera; it reads upright with the board's top edge up,
-and on bottom-side markers from below. The marker is coloured from the 2D view's own
-`--pin1-outline-color` CSS variable, so it matches the canvas and follows dark mode.
+and on bottom-side markers from below. A part with no pin 1 (2-4 pads, none named 1, e.g. a diode
+whose pads are K and A) gets a marker on each pad instead, printed with that pad's name, and no
+pin-1 mark in 2D. The marker is coloured from the 2D view's own `--pin1-outline-color` CSS variable,
+so it matches the canvas and follows dark mode.
 
 The sphere's radius is 0.7 × the pin-1 pad's shorter side (at least 0.4 mm), so the marker is sized
 in board millimetres and grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker

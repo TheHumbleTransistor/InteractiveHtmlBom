@@ -640,7 +640,15 @@ class PcbnewParser(EcadParser):
                 for pad_dict in self.parse_pad(p):
                     pads.append((p.GetPadName(), pad_dict))
 
-            if pads:
+            names = {name for name, _ in pads if name}
+            if 2 <= len(names) <= 4 and \
+                    not names & {'1', 'A1', 'P1', 'PAD1'}:
+                # No pin 1 to point at (e.g. a diode's K/A): name every pad
+                # instead. 'A' is left out of the test as it is the anode.
+                for pad_name, pad_dict in pads:
+                    if pad_name:
+                        pad_dict['name'] = pad_name
+            elif pads:
                 # Try to guess first pin name.
                 pads = sorted(pads, key=lambda el: el[0])
                 pin1_pads = [p for p in pads if p[0] in
