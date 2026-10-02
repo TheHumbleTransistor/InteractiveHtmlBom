@@ -557,13 +557,14 @@ function pin1Scale() {
   return Math.min(Math.max(v, 50), 200) / 100;
 }
 
-/* How far the part's 3D model rises off the board face it is mounted on, in model units. */
-function partHeight(fp) {
+/* How far the part's 3D model rises off one face of the board ('F' or 'B'), in model units. On the
+ * face opposite the part this is how far its leads poke through. */
+function partHeight(fp, side) {
   const nodes = nodesFor(fp.ref);
   if (!nodes.length) return 0;
   const box = new THREE.Box3();
   for (const n of nodes) box.expandByObject(n);
-  return Math.max(fp.layer === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
+  return Math.max(side === 'B' ? boardBottomY - box.min.y : box.max.y - boardTopY, 0);
 }
 
 /* Unit vector in board mm from the centroid of the footprint's pads to this pad, or null when the
@@ -592,15 +593,15 @@ function pin1Tip(fp, pad) {
   return [pad.pos[0] + ox * c + oy * s, pad.pos[1] - ox * s + oy * c];
 }
 
-function buildPin1Marker(fp, pad, mat) {
-  const back = fp.layer === 'B';
+function buildPin1Marker(fp, pad, mat, side) {
+  const back = side === 'B';
   const r = Math.max(PIN1_MIN_RADIUS_MM, PIN1_RADIUS_PER_PAD * Math.min(...pad.size))
     * pin1Scale() * 0.001;
   const out = pin1Outward(fp, pad);
   const lean = out ? THREE.MathUtils.degToRad(PIN1_LEAN_DEG) : 0;
   // Pad to sphere centre along the marker's axis; the centre's height off the board still clears
   // the part.
-  const d = (Math.max(partHeight(fp), r) + r) / Math.cos(lean);
+  const d = (Math.max(partHeight(fp, side), r) + r) / Math.cos(lean);
   const slant = Math.sqrt(d * d - r * r);
   const ringH = slant * slant / d, ringR = r * slant / d;
   const marker = new THREE.Group();
@@ -637,7 +638,10 @@ function updatePin1(refs) {
     // by any z offset the 3D model carries -- J5's is 3.85 mm, which left its mark hovering in
     // mid-air -- and the marker belongs on the land pattern anyway.
     for (const pad of (fp.pads || [])) {
-      if (pad.pin1) pin1Group.add(buildPin1Marker(fp, pad, mat));
+      if (!pad.pin1) continue;
+      for (const side of (pad.type === 'th' ? ['F', 'B'] : [fp.layer])) {
+        pin1Group.add(buildPin1Marker(fp, pad, mat, side));
+      }
     }
   }
 }
