@@ -82,7 +82,7 @@ to the marker rather than turning to face the camera; it reads upright with the 
 and on bottom-side markers from below. The marker is coloured from the 2D view's own
 `--pin1-outline-color` CSS variable, so it matches the canvas and follows dark mode.
 
-The sphere's radius is 0.35 × the pin-1 pad's shorter side (at least 0.2 mm), so the marker is sized
+The sphere's radius is 0.7 × the pin-1 pad's shorter side (at least 0.4 mm), so the marker is sized
 in board millimetres and grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker
 size** in the settings menu scales it (50–200 %). Markers have their own render pass and light, so
 the board's dimming doesn't reach them.

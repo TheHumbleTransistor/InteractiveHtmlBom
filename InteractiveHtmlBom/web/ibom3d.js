@@ -24,8 +24,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
-const PIN1_RADIUS_PER_PAD = 0.35;  // sphere radius / the pad's shorter side, at 100 %
-const PIN1_MIN_RADIUS_MM = 0.2;
+const PIN1_RADIUS_PER_PAD = 0.7;   // sphere radius / the pad's shorter side, at 100 %
+const PIN1_MIN_RADIUS_MM = 0.4;
 const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
 const PIN1_LEAN_DEG = 15;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
