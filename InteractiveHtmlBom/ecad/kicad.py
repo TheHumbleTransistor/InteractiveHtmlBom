@@ -7,6 +7,7 @@ from .common import EcadParser, Component, ExtraFieldData
 from .kicad_extra import find_latest_schematic_data, parse_schematic_data
 from .svgpath import create_path
 from ..core import ibom
+from ..core import polarity
 from ..core.config import Config
 from ..core.fontparser import FontParser
 
@@ -681,6 +682,12 @@ class PcbnewParser(EcadParser):
                     footprint["mount"] = "th"
                 elif f.GetAttributes() & pcbnew.FP_SMD:
                     footprint["mount"] = "smd"
+            description = ''
+            if hasattr(f, 'HasField') and f.HasField('Description'):
+                description = f.GetFieldText('Description')
+            footprint["polarized"] = polarity.classify(
+                ref, str(f.GetFPID().GetLibItemName()), names, description,
+                f.GetFilters() if hasattr(f, 'GetFilters') else '')
             footprints.append(footprint)
 
         return footprints

@@ -135,6 +135,13 @@ function silkscreenVisible(value) {
   redrawIfInitDone();
 }
 
+function setOmitPin1NonPolar(value) {
+  writeStorage("omitPin1NonPolar", value);
+  settings.omitPin1NonPolar = value;
+  if (window.updatePin1) window.updatePin1();
+  redrawIfInitDone();
+}
+
 function setHighlightPin1(value) {
   writeStorage("highlightpin1", value);
   settings.highlightpin1 = value;
@@ -372,6 +379,10 @@ function entryMatches(entry) {
         return true;
       }
     }
+  }
+  if (!settings.hiddenColumns.includes(POLARITY_COLUMN) &&
+      polarityLabels(entry).some(l => l.toLowerCase().indexOf(filter) >= 0)) {
+    return true;
   }
   if (!settings.hiddenColumns.includes(SIDE_COLUMN) &&
       sideLabels(entry).some(l => l[0].toLowerCase().indexOf(filter) >= 0)) {
@@ -674,6 +685,11 @@ function populateBomHeader(placeHolderColumn = null, placeHolderElements = null)
         });
         th.title = MOUNT_HEADER_TOOLTIP;
         tr.appendChild(th);
+      } else if (column === POLARITY_COLUMN) {
+        var th = createColumnHeader(POLARITY_COLUMN, "polarity-col", (a, b) =>
+          polarityLabels(a).join().localeCompare(polarityLabels(b).join()));
+        th.title = POLARITY_HEADER_TOOLTIP;
+        tr.appendChild(th);
       } else if (column === SIDE_COLUMN) {
         var th = createColumnHeader(SIDE_COLUMN, "side-col", (a, b) =>
           sideLabels(a).map(l => l[1]).join().localeCompare(sideLabels(b).map(l => l[1]).join()));
@@ -823,6 +839,10 @@ function populateBomBody(placeholderColumn = null, placeHolderElements = null) {
           td = document.createElement("TD");
           td.innerHTML = mountLabels(references).map(([label, tip, icon]) =>
             `<span class="mount" title="${tip}">${icon}${highlightFilter(label)}</span>`).join(", ");
+          tr.appendChild(td);
+        } else if (column === POLARITY_COLUMN) {
+          td = document.createElement("TD");
+          td.innerHTML = polarityLabels(references).map(highlightFilter).join(", ");
           tr.appendChild(td);
         } else if (column === SIDE_COLUMN) {
           td = document.createElement("TD");

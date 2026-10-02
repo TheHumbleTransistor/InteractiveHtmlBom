@@ -160,6 +160,10 @@
             </form>
           </label>
           <label class="menu-label">
+            <input id="omitPin1NonPolarCheckbox" type="checkbox" checked onchange="setOmitPin1NonPolar(this.checked)">
+            Omit pin 1 on non-polarized parts
+          </label>
+          <label class="menu-label">
             <span>Board rotation</span>
             <span style="float: right"><span id="rotationDegree">0</span>&#176;</span>
             <input id="boardRotation" type="range" min="-36" max="36" value="0" class="slider" oninput="setBoardRotation(this.value)">

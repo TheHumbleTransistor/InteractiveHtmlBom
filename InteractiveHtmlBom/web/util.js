@@ -471,6 +471,8 @@ function overwriteSettings(newSettings) {
   document.getElementById("darkmodeCheckbox").checked = settings.darkMode;
   setHighlightPin1(settings.highlightpin1);
   document.forms.highlightpin1.highlightpin1.value = settings.highlightpin1;
+  setOmitPin1NonPolar(settings.omitPin1NonPolar);
+  document.getElementById("omitPin1NonPolarCheckbox").checked = settings.omitPin1NonPolar;
   writeStorage("boardRotation", settings.boardRotation);
   document.getElementById("boardRotation").value = settings.boardRotation / 5;
   document.getElementById("rotationDegree").textContent = settings.boardRotation;
@@ -512,6 +514,7 @@ var settings = {
   darkMode: false,
   highlightpin1: "selected",
   placed3donly: true,
+  omitPin1NonPolar: true,
   redrawOnDrag: true,
   boardRotation: 0,
   zoom3d: 0,
@@ -602,17 +605,18 @@ function initDefaults() {
   initBooleanSetting("redrawOnDrag", config.redraw_on_drag, "dragCheckbox", setRedrawOnDrag);
   initBooleanSetting("highlightRowOnClick", true, "highlightRowOnClickCheckbox", setHighlightRowOnClick);
   initBooleanSetting("placed3donly", true, "placed3dOnlyCheckbox", setPlaced3dOnly);
+  initBooleanSetting("omitPin1NonPolar", true, "omitPin1NonPolarCheckbox", setOmitPin1NonPolar);
   initBooleanSetting("darkmode", config.dark_mode, "darkmodeCheckbox", setDarkMode);
 
   var anyDnp = pcbdata.bom.both.some(row => row.some(r => dnpFootprints.has(r[1])));
   var fields = ["checkboxes", "References"]
     .concat(config.fields.filter(f => f != "kicad_dnp" || anyDnp))
-    .concat([MOUNT_COLUMN, SIDE_COLUMN, "Quantity"]);
+    .concat([MOUNT_COLUMN, SIDE_COLUMN, POLARITY_COLUMN, "Quantity"]);
   var hcols = JSON.parse(readStorage("hiddenColumns"));
   if (hcols === null) {
     // Default only -- a stored preference wins, and the filter below drops this harmlessly on a
     // BOM that lacks one of these columns. They stay available in the column menu.
-    hcols = ["Footprint", "kicad_dnp"];
+    hcols = ["Footprint", "kicad_dnp", POLARITY_COLUMN];
   }
   settings.hiddenColumns = hcols.filter(e => fields.includes(e));
 
@@ -721,6 +725,22 @@ function footprintMount(i) {
 function mountLabels(references) {
   return [...new Set(references.map(r => footprintMount(r[1])))].sort()
     .map(m => MOUNT_LABELS[m].concat([MOUNT_ICONS[m]]));
+}
+
+const POLARITY_COLUMN = "Polarized";
+const POLARITY_HEADER_TOOLTIP = "Does orientation matter? No = resistor, ceramic capacitor, " +
+  "inductor, fuse or ferrite bead per its schematic symbol. Unsure = couldn't tell, so its pin 1 " +
+  "is still marked.";
+const POLARITY_LABELS = { yes: "Yes", no: "No", unsure: "Unsure" };
+
+function polarityLabels(references) {
+  return [...new Set(references.map(r => pcbdata.footprints[r[1]].polarized || "unsure"))]
+    .sort().map(p => POLARITY_LABELS[p]);
+}
+
+/* True when the "omit pin 1 on non-polarized parts" setting hides this footprint's pin-1 mark. */
+function pin1Omitted(footprint) {
+  return settings.omitPin1NonPolar && footprint.polarized === "no";
 }
 
 const SIDE_COLUMN = "Side";
