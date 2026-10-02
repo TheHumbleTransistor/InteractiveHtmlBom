@@ -537,6 +537,8 @@ function buildDnpCrosses() {
 /* Pin-1 marker: a sphere whose bottom sits on top of the part's 3D model, on a cone whose tip touches
  * the pin-1 pad and which meets the sphere where their surfaces are tangent. */
 var pin1Materials = {};
+// Drawn first, so only each pixel's nearest marker surface blends in and overlaps don't darken.
+const pin1DepthMaterial = new THREE.MeshBasicMaterial({ colorWrite: false });
 
 /* The marker colour with an opaque "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
 function pin1Material(color, text) {
@@ -653,6 +655,8 @@ function buildPin1Marker(fp, pad, mat, side) {
   const coneUV = cone.geometry.attributes.uv;
   for (let i = 0; i < coneUV.count; i++) coneUV.setXY(i, 0.02, 0.02);
   pin1CapUVs(sphere.geometry, new THREE.Vector3(0, d, 0), marker.quaternion, r, back);
+  marker.add(new THREE.Mesh(cone.geometry, pin1DepthMaterial),
+             new THREE.Mesh(sphere.geometry, pin1DepthMaterial));
   return marker;
 }
 
