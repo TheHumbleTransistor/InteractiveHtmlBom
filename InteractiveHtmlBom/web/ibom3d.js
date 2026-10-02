@@ -24,8 +24,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // and tracks dark mode for free -- render.js reads the same property.
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
-const PIN1_RADIUS_PER_PAD = 0.35;  // sphere radius / the pad's shorter side, at 100 %
-const PIN1_MIN_RADIUS_MM = 0.2;
+const PIN1_RADIUS_PER_PAD = 0.7;   // sphere radius / the pad's shorter side, at 100 %
+const PIN1_MIN_RADIUS_MM = 0.4;
 const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
 const PIN1_LEAN_DEG = 15;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
@@ -540,12 +540,46 @@ function buildDnpCrosses() {
  * the pin-1 pad and which meets the sphere where their surfaces are tangent. */
 var pin1Materials = {};
 
+/* The marker colour with a "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
 function pin1Material(color) {
   if (!pin1Materials[color]) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 225px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('1', 128, 146);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
     pin1Materials[color] = new THREE.MeshStandardMaterial(
-      { color: color, roughness: 0.35, metalness: 0 });
+      { map: tex, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
   }
   return pin1Materials[color];
+}
+
+/* Project the texture straight down onto the sphere's outer half, in board orientation: board +x
+ * to the right and the board's top edge up, mirrored on the bottom side so it reads from below.
+ * The inner half maps just outside the texture in the same direction, so it clamps to the plain
+ * edge colour and no triangle across the equator interpolates through the glyph. */
+function pin1CapUVs(geometry, centre, quaternion, r, back) {
+  const pos = geometry.attributes.position, uv = geometry.attributes.uv;
+  const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(quaternion);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i).sub(centre).applyQuaternion(quaternion);
+    let x = (back ? -v.x : v.x) / (2 * r), z = xform.zsign * v.z / (2 * r);
+    if (v.dot(axis) <= 0) {
+      const len = Math.hypot(x, z) || 1;
+      x = x / len * 0.6;
+      z = z / len * 0.6;
+    }
+    uv.setXY(i, 0.5 + x, 0.5 - z);
+  }
+  uv.needsUpdate = true;
 }
 
 function pin1Scale() {
@@ -605,7 +639,7 @@ function buildPin1Marker(fp, pad, mat, side) {
   marker.add(
     new THREE.Mesh(new THREE.ConeGeometry(ringR, ringH, 24).rotateX(Math.PI)
       .translate(0, ringH / 2, 0), mat),
-    new THREE.Mesh(new THREE.SphereGeometry(r, 32, 16).translate(0, d, 0), mat));
+    new THREE.Mesh(new THREE.SphereGeometry(r, 48, 24).translate(0, d, 0), mat));
   marker.position.copy(toModel(pin1Tip(fp, pad), back ? boardBottomY : boardTopY));
   const axis = new THREE.Vector3(0, back ? -Math.cos(lean) : Math.cos(lean), 0);
   if (out) {
@@ -613,6 +647,10 @@ function buildPin1Marker(fp, pad, mat, side) {
     axis.z = xform.zsign * out[1] * Math.sin(lean);
   }
   marker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize());
+  const [cone, sphere] = marker.children;
+  const coneUV = cone.geometry.attributes.uv;
+  for (let i = 0; i < coneUV.count; i++) coneUV.setXY(i, 0.02, 0.02);
+  pin1CapUVs(sphere.geometry, new THREE.Vector3(0, d, 0), marker.quaternion, r, back);
   return marker;
 }
 

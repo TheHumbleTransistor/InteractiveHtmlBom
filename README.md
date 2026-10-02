@@ -77,10 +77,12 @@ Honours the existing **Highlight first pin** setting (`none` / `all` / `selected
 gets a 3D marker: a sphere whose bottom sits on top of the part's 3D model, on a cone that runs down
 to touch the pad and meets the sphere where their surfaces are tangent. So the marker always clears
 its own part, however tall. A through-hole pin 1 is marked on both faces of the board; on the far
-side the sphere clears the leads poking through. It is coloured from the 2D view's own
+side the sphere clears the leads poking through. A "1" is printed on the sphere's outer cap, fixed
+to the marker rather than turning to face the camera; it reads upright with the board's top edge up,
+and on bottom-side markers from below. The marker is coloured from the 2D view's own
 `--pin1-outline-color` CSS variable, so it matches the canvas and follows dark mode.
 
-The sphere's radius is 0.35 × the pin-1 pad's shorter side (at least 0.2 mm), so the marker is sized
+The sphere's radius is 0.7 × the pin-1 pad's shorter side (at least 0.4 mm), so the marker is sized
 in board millimetres and grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker
 size** in the settings menu scales it (50–200 %). Markers have their own render pass and light, so
 the board's dimming doesn't reach them.
