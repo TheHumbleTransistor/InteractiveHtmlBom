@@ -13,13 +13,29 @@ _POLAR_DESCRIPTION = re.compile(r'(?<!un)polarized|diode|\bled\b|electrolytic|ta
 _POLAR_FOOTPRINT = re.compile(r'^(CP_|D_|LED_)')
 
 
-def classify(ref, footprint_name, pad_names, description='', filters=''):
-    # type: (str, str, set, str, str) -> str
+def silk_symmetric(segments, tol=0.05):
+    # type: (list, float) -> bool | None
+    """Whether silkscreen segments ((x1, y1), (x2, y2)), in mm around the part's centre and in its
+    own orientation, mirror onto themselves about both axes. None when there are none."""
+    if not segments:
+        return None
+
+    def key(segs):
+        return sorted(tuple(sorted(((round(a[0] / tol), round(a[1] / tol)),
+                                    (round(b[0] / tol), round(b[1] / tol)))))
+                      for a, b in segs)
+    base = key(segments)
+    return (key([((-a[0], a[1]), (-b[0], b[1])) for a, b in segments]) == base and
+            key([((a[0], -a[1]), (b[0], -b[1])) for a, b in segments]) == base)
+
+
+def classify(ref, footprint_name, pad_names, description='', filters='', silk_symmetric=None):
+    # type: (str, str, set, str, str, bool | None) -> str
     """Return 'yes', 'no' or 'unknown': does this part's orientation matter?
 
-    'no' requires evidence from the schematic symbol (description or footprint filters) and none
-    to the contrary. Never infer 'no' from the footprint name alone: polarized capacitors are
-    often placed on plain C_ footprints.
+    'no' requires evidence from the schematic symbol (description or footprint filters), silkscreen
+    symmetric about both axes, and nothing to the contrary. Never infer 'no' from the footprint
+    alone: polarized capacitors are often placed on plain, symmetric C_ footprints.
     """
     names = {n for n in pad_names if n}
     if len(names) > 2:
@@ -39,6 +55,6 @@ def classify(ref, footprint_name, pad_names, description='', filters=''):
     if polar:
         return 'unknown' if nonpolar else 'yes'
     prefix = re.match(r'[A-Za-z]*', ref or '').group(0).upper()
-    if nonpolar and prefix in _BIDIRECTIONAL_REFS:
+    if nonpolar and silk_symmetric and prefix in _BIDIRECTIONAL_REFS:
         return 'no'
     return 'unknown'

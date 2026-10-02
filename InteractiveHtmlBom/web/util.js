@@ -738,7 +738,7 @@ function polarityLabels(references) {
     .sort().map(p => POLARITY_LABELS[p]);
 }
 
-/* True when the "omit pin 1 on bidirectional parts" setting hides this footprint's pin-1 mark. */
+/* True when the "omit pin-1 marker on bidirectional parts" setting hides this footprint's pin-1 mark. */
 function pin1Omitted(footprint) {
   return settings.omitPin1NonPolar && footprint.polarized === "no";
 }

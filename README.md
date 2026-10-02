@@ -413,14 +413,15 @@ classification is shown in a **Polarized** column, hidden by default (the column
 - **No** requires evidence from the part's schematic symbol and none to the contrary: a two-pad
   R, C, L, FB or F whose Description (copied from the symbol) reads "Resistor", "Unpolarized
   capacitor", "Inductor", "Ferrite bead", "Fuse" or mentions ceramic, or whose symbol footprint
-  filters are `R_*`, `C_*`, `L_*` and the like. The footprint name alone never makes a part No,
-  since polarized capacitors are often placed on plain `C_` footprints.
+  filters are `R_*`, `C_*`, `L_*` and the like, **and** whose footprint silkscreen is symmetric
+  about both of its axes (a "+", cathode band or pin-1 dot breaks that). The footprint alone never
+  makes a part No, since polarized capacitors are often placed on plain, symmetric `C_` footprints.
 - **Yes**: a polarity signal (`CP_` footprint or filter, "Polarized capacitor", a diode or LED), or
   more than two pins.
-- **Unknown**: everything else, including conflicting evidence (a bidirectional TVS diode) or a
-  part with no symbol fields at all.
+- **Unknown**: everything else, including conflicting evidence (a bidirectional TVS diode, an
+  inductor whose footprint marks pin 1), no silkscreen, or no symbol fields at all.
 
-**Omit pin 1 on bidirectional parts**, on by default, hides the pin-1 marks of parts classified No,
+**Omit pin-1 marker on bidirectional parts**, on by default, hides the pin-1 marks of parts classified No,
 in both the 2D and 3D views. Turn it off to mark every part again. Yes and Unknown parts always keep
 their marks.
 

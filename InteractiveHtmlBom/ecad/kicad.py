@@ -1,3 +1,4 @@
+import math
 import os
 from datetime import datetime
 
@@ -687,7 +688,8 @@ class PcbnewParser(EcadParser):
                 description = f.GetFieldText('Description')
             footprint["polarized"] = polarity.classify(
                 ref, str(f.GetFPID().GetLibItemName()), names, description,
-                f.GetFilters() if hasattr(f, 'GetFilters') else '')
+                f.GetFilters() if hasattr(f, 'GetFilters') else '',
+                self.silk_symmetry(f) if len(names) == 2 else None)
             footprints.append(footprint)
 
         return footprints
@@ -777,6 +779,53 @@ class PcbnewParser(EcadParser):
         nets = net_info.NetsByName().asdict().keys()
         nets = sorted([str(s) for s in nets])
         return nets
+
+    @staticmethod
+    def silk_symmetry(f):
+        # type: (pcbnew.FOOTPRINT) -> bool | None
+        """Whether the footprint's silkscreen mirrors onto itself about both of its own axes, centred
+        on its pads. False if it carries text, None if it has no silkscreen."""
+        pads = list(f.Pads())
+        if not pads:
+            return None
+        cx = sum(p.GetPosition().x for p in pads) / len(pads)
+        cy = sum(p.GetPosition().y for p in pads) / len(pads)
+        th = math.radians(f.GetOrientationDegrees())
+        c, s = math.cos(th), math.sin(th)
+
+        def local(v):
+            x, y = v.x - cx, v.y - cy
+            return ((x * c - y * s) * 1e-6, (x * s + y * c) * 1e-6)
+
+        def ring(points):
+            return [(points[i], points[(i + 1) % len(points)])
+                    for i in range(len(points))]
+
+        segments = []
+        for item in f.GraphicalItems():
+            if item.GetLayer() not in (pcbnew.F_SilkS, pcbnew.B_SilkS):
+                continue
+            if item.GetClass() != 'PCB_SHAPE':
+                return False
+            shape = item.GetShape()
+            if shape == pcbnew.SHAPE_T_ARC:
+                a, m, e = (local(item.GetStart()), local(item.GetArcMid()),
+                           local(item.GetEnd()))
+                segments += [(a, m), (m, e)]
+            elif shape == pcbnew.SHAPE_T_CIRCLE:
+                ctr, r = item.GetCenter(), item.GetRadius()
+                segments += ring([local(pcbnew.VECTOR2I(
+                    int(ctr.x + r * math.cos(k * math.pi / 2)),
+                    int(ctr.y + r * math.sin(k * math.pi / 2)))) for k in range(4)])
+            elif shape == pcbnew.SHAPE_T_RECTANGLE:
+                segments += ring([local(v) for v in item.GetRectCorners()])
+            elif shape == pcbnew.SHAPE_T_POLY:
+                outline = item.GetPolyShape().Outline(0)
+                segments += ring([local(outline.CPoint(i))
+                                  for i in range(outline.PointCount())])
+            else:
+                segments.append((local(item.GetStart()), local(item.GetEnd())))
+        return polarity.silk_symmetric(segments)
 
     def footprint_to_component(self, footprint, extra_fields):
         # type: (pcbnew.FOOTPRINT, list) -> Component
