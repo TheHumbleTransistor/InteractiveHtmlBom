@@ -549,14 +549,14 @@ function pin1Material(color) {
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, 256, 256);
     ctx.fillStyle = 'black';
-    ctx.font = 'bold 150px sans-serif';
+    ctx.font = 'bold 225px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('1', 128, 140);
+    ctx.fillText('1', 128, 146);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     pin1Materials[color] = new THREE.MeshStandardMaterial(
-      { map: tex, roughness: 0.35, metalness: 0 });
+      { map: tex, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
   }
   return pin1Materials[color];
 }
