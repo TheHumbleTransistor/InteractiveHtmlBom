@@ -20,10 +20,7 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-// Follow the 2D view's own CSS variable rather than hardcoding, so the marker matches the canvas
-// and tracks dark mode for free -- render.js reads the same property.
-const PIN1_COLOR_VAR = '--pin1-outline-color';
-const PIN1_COLOR_FALLBACK = '#ffb629';
+const PIN1_COLOR = 'rgba(255, 255, 255, 0.5)';
 const PIN1_RADIUS_MM = 0.42;       // every marker's sphere, at 100 %
 const PIN1_MIN_HEIGHT_MM = 1.25;   // sphere bottom above the board, however short the part
 const PIN1_MAX_HEIGHT_MM = 2.5;    // sphere bottom above the board, however tall the part
@@ -541,7 +538,7 @@ function buildDnpCrosses() {
  * the pin-1 pad and which meets the sphere where their surfaces are tangent. */
 var pin1Materials = {};
 
-/* The marker colour with a "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
+/* The marker colour with an opaque "1" in the middle; pin1CapUVs() puts the middle on the sphere's cap. */
 function pin1Material(color, text) {
   const key = color + '\n' + text;
   if (!pin1Materials[key]) {
@@ -560,7 +557,7 @@ function pin1Material(color, text) {
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     pin1Materials[key] = new THREE.MeshStandardMaterial(
-      { map: tex, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
+      { map: tex, transparent: true, roughness: 0.9, metalness: 0, envMapIntensity: 0.4 });
   }
   return pin1Materials[key];
 }
@@ -666,9 +663,6 @@ function updatePin1(refs) {
   const mode = settings.highlightpin1;
   if (!xform || mode == "none") return;
   const wanted = (mode == "all") ? null : new Set(refs || []);
-  const css = getComputedStyle(document.documentElement)
-    .getPropertyValue(PIN1_COLOR_VAR).trim();
-  const color = css || PIN1_COLOR_FALLBACK;
   for (const fp of pcbdata.footprints) {
     if (wanted && !wanted.has(fp.ref)) continue;
     if (pin1Omitted(fp)) continue;
@@ -682,7 +676,7 @@ function updatePin1(refs) {
     const pads = fp.pads || [];
     const named = pads.filter((p, i) => p.name && pads.findIndex(q => q.name === p.name) === i);
     for (const pad of (named.length ? named : pads.filter(p => p.pin1))) {
-      const mat = pin1Material(color, pad.name || '1');
+      const mat = pin1Material(PIN1_COLOR, pad.name || '1');
       for (const side of (pad.type === 'th' ? ['F', 'B'] : [fp.layer])) {
         pin1Group.add(buildPin1Marker(fp, pad, mat, side));
       }
