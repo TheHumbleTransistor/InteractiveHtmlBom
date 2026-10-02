@@ -32,10 +32,7 @@ const DNP_COLOR = 0xe00000;
 const DNP_TINT = 0.75;       // how far a populated DNP part's colours are pulled toward DNP_COLOR
 const DNP_LIFT_MM = 0.05;    // clears the silkscreen, which sits ~25 um above the mask
 const FIT_MARGIN = 1.6;      // 1.0 = bounding sphere exactly fills the vertical FOV
-// Never close in past this fraction of the whole board's radius. Without it a 0805 fills the
-// screen and you lose all sense of WHERE on the board you are looking, which is most of the
-// value of a 3D view next to a BOM.
-const MIN_FIT_FRACTION = 0.30;
+const SELECTION_MAX_VIEW = 0.2; // zoom on select never lets the selection fill more of the view
 const FLAT_EPS = 1e-5;       // a face thinner than 10 um is a flat overlay, not a solid
 // KiCad honours the stackup for silkscreen (this board declares white silk and exports #f5f5f5)
 // but gives copper a flat #808080, which is nobody's idea of copper. The mask is recoloured too:
@@ -665,16 +662,6 @@ function setDepthRange(dist) {
   }
 }
 
-/* Move the camera toward a fit on `box`, travelling a fraction `t` of the way there.
- *
- * t comes from the "3D zoom on select" slider unless a caller overrides it. The fraction is
- * RELATIVE to wherever the camera currently is, which is what makes t = 0 mean "do not move at
- * all" rather than "frame the whole board". The trade that buys: selecting the same row twice at
- * 50 % lands 75 % of the way in, since each move starts from the last one.
- *
- * The MIN_FIT_FRACTION clamp stays inside the target distance, so t = 1 is bit-for-bit the
- * behaviour that existed before the slider.
- */
 /* Dim everything but the selection, while a selection exists. 0 = off, 1 = fully dimmed. */
 function dimFraction() {
   if (typeof settings === "undefined" || settings.dim3d === undefined) return 0;
@@ -723,26 +710,43 @@ function flipToSelection(refs) {
 
 const FLIP_MS = 500;
 var flipAnim = null;
+var flipEnd = null;                      // the pose the running animation will leave the camera in
+var holdRender = false;
 
+function cameraPose() {
+  return { target: controls.target.clone(), position: camera.position.clone(),
+           up: camera.up.clone(), quaternion: camera.quaternion.clone() };
+}
+
+function setCameraPose(pose) {
+  controls.target.copy(pose.target);
+  camera.position.copy(pose.position);
+  camera.up.copy(pose.up);
+  camera.lookAt(controls.target);
+}
+
+/* Stop where it is: the user has taken over the view. */
 function stopFlipAnimation() {
   if (flipAnim) cancelAnimationFrame(flipAnim);
   flipAnim = null;
 }
 
-/* Animate the half turn about `axis` that ends at the camera's current position and up. */
+const easeInOut = (k) => k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+
+/* Animate the half turn about `axis` that ends at the camera's current pose. A half turn has no
+ * unique shortest path, so it is driven about the axis explicitly. */
 function animateFlip(axis) {
   stopFlipAnimation();
+  flipEnd = cameraPose();
   const half = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI);
-  const endUp = camera.up.clone();
   const fromOffset = camera.position.clone().sub(controls.target).applyQuaternion(half);
-  const fromUp = endUp.clone().applyQuaternion(half);
+  const fromUp = flipEnd.up.clone().applyQuaternion(half);
   const t0 = performance.now();
   const step = (now) => {
     const k = Math.min((now - t0) / FLIP_MS, 1);
-    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-    const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI * ease);
+    const q = new THREE.Quaternion().setFromAxisAngle(axis, Math.PI * easeInOut(k));
     camera.position.copy(fromOffset).applyQuaternion(q).add(controls.target);
-    camera.up.copy(k < 1 ? fromUp.clone().applyQuaternion(q) : endUp);
+    camera.up.copy(k < 1 ? fromUp.clone().applyQuaternion(q) : flipEnd.up);
     camera.lookAt(controls.target);
     render();
     flipAnim = k < 1 ? requestAnimationFrame(step) : null;
@@ -750,23 +754,57 @@ function animateFlip(axis) {
   step(t0);
 }
 
-function frame(box, immediate, t) {
-  if (t === undefined) t = zoomFraction();
-  const sphere = box.getBoundingSphere(new THREE.Sphere());
-  const radius = Math.max(sphere.radius, boardRadius * MIN_FIT_FRACTION);
-  const fit = radius * FIT_MARGIN / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-  if (dir.lengthSq() < 1e-9) dir.set(0.4, 1, 0.7).normalize();
-  const dist = THREE.MathUtils.lerp(camera.position.distanceTo(controls.target), fit, t);
-  controls.target.lerp(sphere.center, t);
-  camera.position.copy(controls.target).addScaledVector(dir, dist);
-  setDepthRange(dist);
-  controls.update();
-  if (immediate) render();          // at t = 0 nothing moved, but the highlight still must draw
+/* Animate from one pose to another: orientation slerped, target and distance interpolated. Used
+ * to carry on, or turn back, from wherever an interrupted animation had got to. Takes as long as
+ * a flip would for the same amount of turning. */
+function animateBetween(from, to) {
+  stopFlipAnimation();
+  flipEnd = to;
+  const fromDist = from.position.distanceTo(from.target), toDist = to.position.distanceTo(to.target);
+  const ms = Math.max(FLIP_MS * from.quaternion.angleTo(to.quaternion) / Math.PI, 1);
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min((now - t0) / ms, 1), e = easeInOut(k);
+    if (k < 1) {
+      const q = from.quaternion.clone().slerp(to.quaternion, e);
+      controls.target.lerpVectors(from.target, to.target, e);
+      camera.quaternion.copy(q);
+      camera.position.set(0, 0, THREE.MathUtils.lerp(fromDist, toDist, e))
+        .applyQuaternion(q).add(controls.target);
+      camera.up.set(0, 1, 0).applyQuaternion(q);
+    } else {
+      setCameraPose(to);
+    }
+    render();
+    flipAnim = k < 1 ? requestAnimationFrame(step) : null;
+  };
+  step(t0);
+}
+
+/* Centre the view on `box` and crop to (1 - zoom) of the board's area, but never so tight that
+ * the selection fills more than SELECTION_MAX_VIEW of the view, nor wider than the whole board.
+ * Absolute, so repeating a selection doesn't compound. Zoom 0 leaves the camera alone unless
+ * `force` (the opening whole-board view). The view direction is kept. */
+function frame(box, immediate, force) {
+  const zoom = zoomFraction();
+  if (zoom > 0 || force) {
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const perRadius = FIT_MARGIN / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2);
+    const boardFit = boardRadius * perRadius;
+    const dist = Math.min(boardFit, Math.max(boardFit * Math.sqrt(1 - zoom),
+                                             sphere.radius * perRadius / Math.sqrt(SELECTION_MAX_VIEW)));
+    const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+    if (dir.lengthSq() < 1e-9) dir.set(0.4, 1, 0.7).normalize();
+    controls.target.copy(sphere.center);
+    camera.position.copy(controls.target).addScaledVector(dir, dist);
+    setDepthRange(dist);
+    controls.update();
+  }
+  if (immediate) render();          // even with nothing moved, the highlight still must draw
 }
 
 function render() {
-  if (!ready) return;
+  if (!ready || holdRender) return;
   const top = viewingTop();
   if (keyLight) keyLight.position.y = Math.abs(keyLight.position.y) * (top ? 1 : -1);
   if (pin1Group) {
@@ -832,11 +870,20 @@ function highlight3D(refs, noFrame) {
     }
   }
   if (!noFrame) {
-    stopFlipAnimation();
+    // Mid-animation, decide the next view as if the animation had finished, but move there from
+    // wherever the camera actually is, so nothing jumps.
+    const interrupted = flipAnim ? cameraPose() : null;
+    if (interrupted) {
+      stopFlipAnimation();
+      holdRender = true;
+      setCameraPose(flipEnd);
+    }
     const flipped = flipToSelection(refs);
     if (hit && !box.isEmpty()) frame(box);
     else if (!refs.length) frame(boardFrame().box);
-    if (flipped) animateFlip(flipped);
+    holdRender = false;
+    if (interrupted) animateBetween(interrupted, cameraPose());
+    else if (flipped) animateFlip(flipped);
   }
   updatePin1(refs);
   applyDim();
@@ -962,7 +1009,7 @@ function init3D(glbDataUri) {
     ready = true;
     window.__ibom3dReady = true;
     resize3D();
-    frame(f.box, true, 1);
+    frame(f.box, true, true);
     applyPlacedFilter();
     if (typeof EventHandler !== "undefined") {
       // iBOM's own extension point, so nothing in their checkbox code needs patching.
