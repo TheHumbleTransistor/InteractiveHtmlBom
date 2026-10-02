@@ -25,7 +25,8 @@ const HIGHLIGHT_INTENSITY = 0.6;
 const PIN1_COLOR_VAR = '--pin1-outline-color';
 const PIN1_COLOR_FALLBACK = '#ffb629';
 const PIN1_RADIUS_MM = 0.42;       // every marker's sphere, at 100 %
-const PIN1_MAX_HEIGHT_MM = 5.0;    // sphere bottom above the board, however tall the part
+const PIN1_MIN_HEIGHT_MM = 1.25;   // sphere bottom above the board, however short the part
+const PIN1_MAX_HEIGHT_MM = 2.5;    // sphere bottom above the board, however tall the part
 const PIN1_TIP_FROM_EDGE = 0.1;    // tip's distance in from the pad's outer end, / pad length
 const PIN1_LEAN_DEG = 15;          // marker tilts this far from the board normal, away from the body
 const DNP_COLOR = 0xe00000;
@@ -632,9 +633,10 @@ function buildPin1Marker(fp, pad, mat, side) {
   const r = PIN1_RADIUS_MM * pin1Scale() * 0.001;
   const out = pin1Outward(fp, pad);
   const lean = out ? THREE.MathUtils.degToRad(PIN1_LEAN_DEG) : 0;
-  // Pad to sphere centre along the marker's axis. The sphere clears the part up to the height cap;
-  // beyond that the lean keeps it off a tall body.
-  const height = Math.max(Math.min(partHeight(fp, side), PIN1_MAX_HEIGHT_MM * 0.001), r);
+  // Pad to sphere centre along the marker's axis. Between the height limits the sphere clears the
+  // part; above them the lean keeps it off a tall body.
+  const height = THREE.MathUtils.clamp(partHeight(fp, side),
+                                       PIN1_MIN_HEIGHT_MM * 0.001, PIN1_MAX_HEIGHT_MM * 0.001);
   const d = (height + r) / Math.cos(lean);
   const slant = Math.sqrt(d * d - r * r);
   const ringH = slant * slant / d, ringR = r * slant / d;
