@@ -82,7 +82,7 @@ side the sphere clears the leads poking through. A "1" is printed on the sphere'
 to the marker rather than turning to face the camera; it reads upright with the board's top edge up,
 and on bottom-side markers from below. A part with no pin 1 (2-4 pads, none named 1, e.g. a diode
 whose pads are K and A) gets a marker on each pad instead, printed with that pad's name, and no
-pin-1 mark in 2D. The marker is white and half transparent, with its text opaque.
+pin-1 mark in 2D. The marker is white at 70 % opacity, with its text opaque.
 
 Every marker's sphere has the same radius, 0.42 mm, so the marker is sized in board millimetres and
 grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker size** in the settings

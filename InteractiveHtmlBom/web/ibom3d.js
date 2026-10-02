@@ -20,7 +20,7 @@ const HIGHLIGHT_INTENSITY = 0.6;
 // highlight emissive it rendered as a near-solid red block and read as a bug rather than a
 // preview -- especially on a grouped row like U5/U6/U7/U9, where four appear at once. Keep it
 // clearly see-through and let the shape, not the colour, carry the information.
-const PIN1_COLOR = 'rgba(255, 255, 255, 0.5)';
+const PIN1_COLOR = 'rgba(255, 255, 255, 0.7)';
 const PIN1_RADIUS_MM = 0.42;       // every marker's sphere, at 100 %
 const PIN1_MIN_HEIGHT_MM = 1.25;   // sphere bottom above the board, however short the part
 const PIN1_MAX_HEIGHT_MM = 2.5;    // sphere bottom above the board, however tall the part
