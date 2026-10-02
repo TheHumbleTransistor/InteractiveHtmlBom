@@ -1931,21 +1931,21 @@
 				)
 			)
 		)
-		(pad "1" smd roundrect
-			(at -0.9375 0)
-			(size 0.975 1.4)
-			(layers "F.Cu" "F.Mask" "F.Paste")
-			(roundrect_rratio 0.25)
-			(net "LED_K")
-			(uuid "055abea4-215f-4d87-b6aa-07c9d0adc8a7")
-		)
-		(pad "2" smd roundrect
+		(pad "A" smd roundrect
 			(at 0.9375 0)
 			(size 0.975 1.4)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(roundrect_rratio 0.25)
 			(net "LED_A")
 			(uuid "045a6403-6bd0-48ca-806c-2ee9310f449f")
+		)
+		(pad "K" smd roundrect
+			(at -0.9375 0)
+			(size 0.975 1.4)
+			(layers "F.Cu" "F.Mask" "F.Paste")
+			(roundrect_rratio 0.25)
+			(net "LED_K")
+			(uuid "055abea4-215f-4d87-b6aa-07c9d0adc8a7")
 		)
 		(embedded_fonts no)
 		(model "${KIPRJMOD}/3dmodels/LED_0805_2012Metric.step"
