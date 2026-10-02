@@ -84,7 +84,7 @@ with that pad's name printed on the sphere's outer cap, and no pin-1 mark in 2D.
 to the marker rather than turning to face the camera; it reads upright with the board's top edge up,
 and on bottom-side markers from below. The marker is white at 70 % opacity, with its text opaque.
 
-Every marker's sphere has the same radius, 0.42 mm, so the marker is sized in board millimetres and
+Every marker's sphere has the same radius, 0.21 mm, so the marker is sized in board millimetres and
 grows and shrinks with zoom like the rest of the board. **3D: Pin 1 marker size** in the settings
 menu scales it (50–200 %). Markers have their own render pass and light, so the board's dimming
 doesn't reach them.
